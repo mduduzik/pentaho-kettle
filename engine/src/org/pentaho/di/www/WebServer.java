@@ -30,19 +30,23 @@ import java.util.TimerTask;
 
 import javax.servlet.Servlet;
 
-import org.mortbay.jetty.Connector;
-import org.mortbay.jetty.Handler;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.bio.SocketConnector;
-import org.mortbay.jetty.handler.ContextHandlerCollection;
-import org.mortbay.jetty.handler.ResourceHandler;
-import org.mortbay.jetty.plus.jaas.JAASUserRealm;
-import org.mortbay.jetty.security.Constraint;
-import org.mortbay.jetty.security.ConstraintMapping;
-import org.mortbay.jetty.security.HashUserRealm;
-import org.mortbay.jetty.security.SecurityHandler;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.bio.SocketConnector;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.server.handler.HandlerList;
+import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.plus.jaas.JAASLoginService;
+import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.HashLoginService;
+import org.eclipse.jetty.security.SecurityHandler;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.security.Credential;
 import org.pentaho.di.cluster.SlaveServer;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
@@ -137,19 +141,20 @@ public class WebServer {
 
     // Set up the security handler, optionally with JAAS
     //
-    SecurityHandler securityHandler = new SecurityHandler();
+    //SecurityHandler securityHandler = new SecurityHandler();
+    ConstraintSecurityHandler securityHandler = new ConstraintSecurityHandler();
 
     if ( System.getProperty( "loginmodulename" ) != null
       && System.getProperty( "java.security.auth.login.config" ) != null ) {
-      JAASUserRealm jaasRealm = new JAASUserRealm( "Kettle" );
+      JAASLoginService jaasRealm = new JAASLoginService( "Kettle" );
       jaasRealm.setLoginModuleName( System.getProperty( "loginmodulename" ) );
-      securityHandler.setUserRealm( jaasRealm );
+      securityHandler.setLoginService(jaasRealm);
     } else {
-      HashUserRealm hashUserRealm;
+      HashLoginService hashUserRealm;
       SlaveServer slaveServer = transformationMap.getSlaveServerConfig().getSlaveServer();
       if ( !Const.isEmpty( slaveServer.getPassword() ) ) {
-        hashUserRealm = new HashUserRealm( "Kettle" );
-        hashUserRealm.put( slaveServer.getUsername(), slaveServer.getPassword() );
+        hashUserRealm = new HashLoginService( "Kettle" );
+        hashUserRealm.putUser(slaveServer.getUsername(),Credential.getCredential(slaveServer.getPassword() ),new String[]{slaveServer.getUsername()});
       } else {
         // See if there is a kettle.pwd file in the KETTLE_HOME directory:
         if ( Const.isEmpty( passwordFile ) ) {
@@ -160,9 +165,9 @@ public class WebServer {
             passwordFile = Const.getKettleLocalCartePasswordFile();
           }
         }
-        hashUserRealm = new HashUserRealm( "Kettle", passwordFile );
+        hashUserRealm = new HashLoginService( "Kettle", passwordFile );
       }
-      securityHandler.setUserRealm( hashUserRealm );
+      securityHandler.setLoginService(hashUserRealm);
     }
 
     securityHandler.setConstraintMappings( new ConstraintMapping[] { constraintMapping } );
@@ -170,13 +175,17 @@ public class WebServer {
     // Add all the servlets defined in kettle-servlets.xml ...
     //
     ContextHandlerCollection contexts = new ContextHandlerCollection();
-
+    HandlerList handlers = new HandlerList();
+    handlers.addHandler(securityHandler);
+    
     // Root
     //
-    Context root = new Context( contexts, GetRootServlet.CONTEXT_PATH, Context.SESSIONS );
+    ServletContextHandler rootHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    rootHandler.setContextPath(GetRootServlet.CONTEXT_PATH);
+    handlers.addHandler(rootHandler);
     GetRootServlet rootServlet = new GetRootServlet();
     rootServlet.setJettyMode( true );
-    root.addServlet( new ServletHolder( rootServlet ), "/*" );
+    rootHandler.addServlet( new ServletHolder( rootServlet ), "/*" );
 
     PluginRegistry pluginRegistry = PluginRegistry.getInstance();
     List<PluginInterface> plugins = pluginRegistry.getPlugins( CartePluginType.class );
@@ -186,9 +195,11 @@ public class WebServer {
       servlet.setup( transformationMap, jobMap, socketRepository, detections );
       servlet.setJettyMode( true );
 
-      Context servletContext = new Context( contexts, servlet.getContextPath(), Context.SESSIONS );
+      ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
+      servletHandler.setContextPath(servlet.getContextPath());
+      handlers.addHandler(servletHandler);
       ServletHolder servletHolder = new ServletHolder( (Servlet) servlet );
-      servletContext.addServlet( servletHolder, "/*" );
+      rootHandler.addServlet( servletHolder, servlet.getContextPath()+"/*" );
     }
 
     // setup jersey (REST)
@@ -196,7 +207,7 @@ public class WebServer {
     jerseyServletHolder.setInitParameter(
       "com.sun.jersey.config.property.resourceConfigClass", "com.sun.jersey.api.core.PackagesResourceConfig" );
     jerseyServletHolder.setInitParameter( "com.sun.jersey.config.property.packages", "org.pentaho.di.www.jaxrs" );
-    root.addServlet( jerseyServletHolder, "/api/*" );
+    rootHandler.addServlet( jerseyServletHolder, "/api/*" );
 
     // setup static resource serving
     // ResourceHandler mobileResourceHandler = new ResourceHandler();
@@ -205,14 +216,27 @@ public class WebServer {
     //   getResource("org/pentaho/di/www/mobile").toExternalForm());
     // Context mobileContext = new Context(contexts, "/mobile", Context.SESSIONS);
     // mobileContext.setHandler(mobileResourceHandler);
+    
+    
+    // Atmosphere 
+	AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
+    ServletHolder servletHolder = new ServletHolder(atmosphereServlet);
+    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websockets");
+    servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
+    servletHolder.setAsyncSupported(true);
+    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
+    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+    context.addServlet(servletHolder, "/websockets/*");
+    handlers.addHandler(context);
 
     // Allow png files to be shown for transformations and jobs...
     //
     ResourceHandler resourceHandler = new ResourceHandler();
     resourceHandler.setResourceBase( "temp" );
+    handlers.addHandler(resourceHandler);
 
     // add all handlers/contexts to server
-    server.setHandlers( new Handler[] { securityHandler, contexts, resourceHandler, } );
+    server.setHandler(handlers);
 
     // Start execution
     createListeners();

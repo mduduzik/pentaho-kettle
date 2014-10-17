@@ -60,8 +60,21 @@
     <dependency org="com.sun.jersey"                   name="jersey-bundle"        rev="1.16"            transitive="false"/>
     <dependency org="com.sun.jersey"                   name="jersey-client"        rev="1.16"            transitive="false"/>
     <dependency org="com.sun.jersey"                   name="jersey-core"          rev="1.16"            transitive="false"/>
-    <dependency org="org.mortbay.jetty"                name="jetty-plus"           rev="6.1.21"          transitive="false"/>
-    <dependency org="org.mortbay.jetty"                name="jetty-util"           rev="6.1.21"          transitive="false"/>
+    <dependency org="org.slf4j" name="slf4j-api" rev="1.7.7" transitive="false"/>
+    <dependency org="org.slf4j" name="slf4j-simple" rev="1.7.7" transitive="false"/>
+    <dependency org="org.atmosphere" name="atmosphere-runtime" rev="2.2.3" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-util" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-server" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-security" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-servlet" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-deploy" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-io" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-plus" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-webapp" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-xml" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-http" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-continuation" rev="7.6.16.v20140903" transitive="false"/>
+ 	<dependency org="org.eclipse.jetty" name="jetty-websocket" transitive="false" rev="7.6.16.v20140903"/>
     <dependency org="jexcelapi"                        name="jxl"                  rev="2.6.12"          transitive="false"/>     
     <dependency org="ldapjdk"                          name="ldapjdk"              rev="20000524"        transitive="false"/>
     <dependency org="monetdb"                          name="monetdb-jdbc"         rev="2.8"             transitive="false"/>

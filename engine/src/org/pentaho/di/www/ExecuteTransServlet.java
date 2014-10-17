@@ -70,7 +70,7 @@ public class ExecuteTransServlet extends BaseHttpServlet implements CartePluginI
 
   public void doGet( HttpServletRequest request, HttpServletResponse response ) throws ServletException,
     IOException {
-    if ( isJettyMode() && !request.getContextPath().startsWith( CONTEXT_PATH ) ) {
+    if ( isJettyMode() && !request.getServletPath().startsWith( CONTEXT_PATH ) ) {
       return;
     }
 
