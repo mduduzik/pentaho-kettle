@@ -1,9 +1,17 @@
 package org.pentaho.di.www.ge;
 
+import org.pentaho.di.core.Const;
 import org.pentaho.di.core.RowMetaAndData;
+import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.LogChannel;
+import org.pentaho.di.core.plugins.PluginRegistry;
+import org.pentaho.di.core.plugins.RepositoryPluginType;
 import org.pentaho.di.core.row.RowMeta;
 import org.pentaho.di.job.JobExecutionConfiguration;
+import org.pentaho.di.repository.RepositoriesMeta;
+import org.pentaho.di.repository.Repository;
+import org.pentaho.di.repository.RepositoryMeta;
+import org.pentaho.di.repository.kdr.KettleDatabaseRepository;
 import org.pentaho.di.trans.TransExecutionConfiguration;
 
 public class GraphEditor {
@@ -22,27 +30,52 @@ public class GraphEditor {
 
 	private RowMetaAndData variables;
 
+	private KettleDatabaseRepository repository;
+
 	public GraphEditor(String uuid) {
 		super();
 		this.uuid = uuid;
-		
+
 		init();
 	}
 
 	private void init() {
-	    transExecutionConfiguration = new TransExecutionConfiguration();
-	    transExecutionConfiguration.setGatheringMetrics( true );
-	    transPreviewExecutionConfiguration = new TransExecutionConfiguration();
-	    transPreviewExecutionConfiguration.setGatheringMetrics( true );
-	    transDebugExecutionConfiguration = new TransExecutionConfiguration();
-	    transDebugExecutionConfiguration.setGatheringMetrics( true );
+		transExecutionConfiguration = new TransExecutionConfiguration();
+		transExecutionConfiguration.setGatheringMetrics(true);
+		transPreviewExecutionConfiguration = new TransExecutionConfiguration();
+		transPreviewExecutionConfiguration.setGatheringMetrics(true);
+		transDebugExecutionConfiguration = new TransExecutionConfiguration();
+		transDebugExecutionConfiguration.setGatheringMetrics(true);
 
-	    jobExecutionConfiguration = new JobExecutionConfiguration();
+		jobExecutionConfiguration = new JobExecutionConfiguration();
 
-	    // Clean out every time we start, auto-loading etc, is not a good idea
-	    // If they are needed that often, set them in the kettle.properties file
-	    //
-	    variables = new RowMetaAndData( new RowMeta() );
+		// Clean out every time we start, auto-loading etc, is not a good idea
+		// If they are needed that often, set them in the kettle.properties file
+		//
+		variables = new RowMetaAndData(new RowMeta());
+	}
+
+	private Repository openRepository(String repositoryName, String user,
+			String pass) throws KettleException {
+
+		if (Const.isEmpty(repositoryName)) {
+			return null;
+		}
+
+		RepositoriesMeta repositoriesMeta = new RepositoriesMeta();
+		repositoriesMeta.readData();
+		RepositoryMeta repositoryMeta = repositoriesMeta
+				.findRepository(repositoryName);
+		if (repositoryMeta == null) {
+			throw new KettleException("Unable to find repository: "
+					+ repositoryName);
+		}
+		PluginRegistry registry = PluginRegistry.getInstance();
+		Repository repository = registry.loadClass(RepositoryPluginType.class,
+				repositoryMeta, Repository.class);
+		repository.init(repositoryMeta);
+		repository.connect(user, pass);
+		return repository;
 	}
 
 	public String getUuid() {
@@ -104,5 +137,5 @@ public class GraphEditor {
 	public void setVariables(RowMetaAndData variables) {
 		this.variables = variables;
 	}
-	
+
 }
