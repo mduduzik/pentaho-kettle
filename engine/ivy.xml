@@ -75,6 +75,7 @@
  	<dependency org="org.eclipse.jetty" name="jetty-http" rev="7.6.16.v20140903" transitive="false"/>
  	<dependency org="org.eclipse.jetty" name="jetty-continuation" rev="7.6.16.v20140903" transitive="false"/>
  	<dependency org="org.eclipse.jetty" name="jetty-websocket" transitive="false" rev="7.6.16.v20140903"/>
+ 	<dependency org="javax.inject" name="javax.inject" rev="1" transitive="false"/>
     <dependency org="jexcelapi"                        name="jxl"                  rev="2.6.12"          transitive="false"/>     
     <dependency org="ldapjdk"                          name="ldapjdk"              rev="20000524"        transitive="false"/>
     <dependency org="monetdb"                          name="monetdb-jdbc"         rev="2.8"             transitive="false"/>
