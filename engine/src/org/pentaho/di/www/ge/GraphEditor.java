@@ -1,18 +1,39 @@
 package org.pentaho.di.www.ge;
 
+import java.util.Date;
+
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.MessageBox;
 import org.pentaho.di.core.Const;
+import org.pentaho.di.core.LastUsedFile;
 import org.pentaho.di.core.RowMetaAndData;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.LogChannel;
+import org.pentaho.di.core.logging.LogLevel;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.RepositoryPluginType;
 import org.pentaho.di.core.row.RowMeta;
+import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.job.JobExecutionConfiguration;
+import org.pentaho.di.job.JobMeta;
+import org.pentaho.di.repository.KettleRepositoryLostException;
+import org.pentaho.di.repository.ObjectId;
 import org.pentaho.di.repository.RepositoriesMeta;
 import org.pentaho.di.repository.Repository;
+import org.pentaho.di.repository.RepositoryDirectoryInterface;
 import org.pentaho.di.repository.RepositoryMeta;
-import org.pentaho.di.repository.kdr.KettleDatabaseRepository;
+import org.pentaho.di.repository.RepositoryObjectType;
+import org.pentaho.di.repository.RepositoryOperation;
 import org.pentaho.di.trans.TransExecutionConfiguration;
+import org.pentaho.di.trans.TransMeta;
+import org.pentaho.di.ui.core.dialog.ErrorDialog;
+import org.pentaho.di.ui.job.dialog.JobLoadProgressDialog;
+import org.pentaho.di.ui.repository.RepositorySecurityUI;
+import org.pentaho.di.ui.spoon.delegates.SpoonDelegates;
+import org.pentaho.di.ui.trans.dialog.TransLoadProgressDialog;
+import org.pentaho.di.www.ge.delegates.GraphEditorDelegates;
+import org.pentaho.di.www.ge.trans.TransGraph;
+import org.pentaho.di.www.ge.websocket.GERequest;
 
 public class GraphEditor {
 
@@ -30,11 +51,18 @@ public class GraphEditor {
 
 	private RowMetaAndData variables;
 
-	private KettleDatabaseRepository repository;
+	private Repository repository;
 
-	public GraphEditor(String uuid) {
+	private GERequest request;
+
+	private TransGraph activeTransGraph;
+
+	private GraphEditorDelegates delegates;
+
+	public GraphEditor(String uuid, GERequest request) {
 		super();
 		this.uuid = uuid;
+		this.request = request;
 
 		init();
 	}
@@ -53,6 +81,66 @@ public class GraphEditor {
 		// If they are needed that often, set them in the kettle.properties file
 		//
 		variables = new RowMetaAndData(new RowMeta());
+
+		delegates = new GraphEditorDelegates(this);
+	}
+
+	public void loadObjectFromRepository(ObjectId objectId,
+			RepositoryObjectType objectType, String versionLabel)
+			throws Exception {
+		// Try to open the selected transformation.
+		if (objectType.equals(RepositoryObjectType.TRANSFORMATION)) {
+			try {
+				TransMeta transMeta = getRepository().loadTransformation(
+						objectId, versionLabel);
+				addTransGraph(transMeta);
+			} catch (Exception e) {
+				throw e;
+			}
+		} else if (objectType.equals(RepositoryObjectType.JOB)) {
+			try {
+				TransMeta transMeta = getRepository().loadTransformation(
+						objectId, versionLabel);
+				addTransGraph(transMeta);
+			} catch (Exception e) {
+				throw e;
+			}
+		}
+	}
+
+	public void addTransGraph(TransMeta transMeta) {
+		delegates.getTransformationDelegate().addTransGraph(transMeta);
+	}
+
+	public void debugTransformation() {
+		executeTransformation(getActiveTransGraph().getTransMeta(), true, false, false,
+				false, true,
+				transPreviewExecutionConfiguration.getReplayDate(), true,
+				transPreviewExecutionConfiguration.getLogLevel());
+	}
+	
+	  public void executeTransformation( final TransMeta transMeta, final boolean local, final boolean remote,
+			    final boolean cluster, final boolean preview, final boolean debug, final Date replayDate,
+			    final boolean safe, final LogLevel logLevel ) {
+
+			    Thread thread = new Thread(new Runnable() {
+			          public void run() {
+				            try {
+				              delegates.getTransformationDelegate().executeTransformation(
+				                transMeta, local, remote, cluster, preview, debug, replayDate, safe, logLevel );
+				            } catch ( Exception e ) {
+				            	e.printStackTrace();
+				            }
+				          }
+				        });
+			    thread.start();
+			  }
+
+	public Repository getRepository() throws KettleException {
+		if (repository == null)
+			repository = openRepository(getRepositoryId(),
+					getRepositoryUsername(), getRepositoryPassword());
+		return repository;
 	}
 
 	private Repository openRepository(String repositoryName, String user,
@@ -76,6 +164,18 @@ public class GraphEditor {
 		repository.init(repositoryMeta);
 		repository.connect(user, pass);
 		return repository;
+	}
+
+	public String getRepositoryId() {
+		return request.getRepositoryId();
+	}
+
+	public String getRepositoryUsername() {
+		return request.getRepositoryUsername();
+	}
+
+	public String getRepositoryPassword() {
+		return request.getRepositoryPassword();
 	}
 
 	public String getUuid() {
@@ -136,6 +236,18 @@ public class GraphEditor {
 
 	public void setVariables(RowMetaAndData variables) {
 		this.variables = variables;
+	}
+
+	public int getDefaultPreviewSize() {
+		return 100;
+	}
+
+	public void setActiveTransGraph(TransGraph transGraph) {
+		this.activeTransGraph = transGraph;
+	}
+
+	public TransGraph getActiveTransGraph() {
+		return this.activeTransGraph;
 	}
 
 }

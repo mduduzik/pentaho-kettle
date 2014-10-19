@@ -29,45 +29,20 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.widgets.MessageBox;
-import org.pentaho.di.cluster.SlaveServer;
 import org.pentaho.di.core.Const;
-import org.pentaho.di.core.EngineMetaInterface;
-import org.pentaho.di.core.NotePadMeta;
-import org.pentaho.di.core.Result;
-import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleException;
-import org.pentaho.di.core.extension.ExtensionPointHandler;
-import org.pentaho.di.core.extension.KettleExtensionPoint;
-import org.pentaho.di.core.gui.Point;
-import org.pentaho.di.core.gui.SpoonInterface;
 import org.pentaho.di.core.logging.LogLevel;
-import org.pentaho.di.core.logging.TransLogTable;
-import org.pentaho.di.core.undo.TransAction;
-import org.pentaho.di.i18n.BaseMessages;
-import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransExecutionConfiguration;
-import org.pentaho.di.trans.TransHopMeta;
 import org.pentaho.di.trans.TransMeta;
-import org.pentaho.di.trans.cluster.TransSplitter;
 import org.pentaho.di.trans.debug.StepDebugMeta;
 import org.pentaho.di.trans.debug.TransDebugMeta;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.ui.core.PropsUI;
-import org.pentaho.di.ui.core.gui.GUIResource;
-import org.pentaho.di.ui.spoon.Spoon;
-import org.pentaho.di.ui.spoon.TabMapEntry;
-import org.pentaho.di.ui.spoon.TabMapEntry.ObjectType;
-import org.pentaho.di.ui.spoon.job.JobGraph;
-import org.pentaho.di.ui.spoon.trans.TransGraph;
-import org.pentaho.di.ui.trans.debug.TransDebugDialog;
-import org.pentaho.di.ui.trans.dialog.TransExecutionConfigurationDialog;
 import org.pentaho.di.www.ge.GraphEditor;
-import org.pentaho.xul.swt.tab.TabItem;
+import org.pentaho.di.www.ge.trans.TransGraph;
 
 public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
-  private static Class<?> PKG = Spoon.class; // for i18n purposes, needed by Translator2!!
+  private static Class<?> PKG = GraphEditor.class; // for i18n purposes, needed by Translator2!!
 
   /**
    * This contains a map between the name of a transformation and the TransMeta object. If the transformation has no
@@ -115,209 +90,10 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
     }
   }
 
-  /**
-   * @param transMeta
-   *          the transformation to close, make sure it's ok to dispose of it BEFORE you call this.
-   */
-  public synchronized void closeTransformation( TransMeta transMeta ) {
-    // Close the associated tabs...
-    //
-    TabMapEntry entry = spoon.delegates.tabs.findTabMapEntry( transMeta );
-    if ( entry != null ) {
-      spoon.delegates.tabs.removeTab( entry );
-    }
-
-    // Also remove it from the item from the transformationMap
-    // Otherwise it keeps showing up in the objects tree
-    // Look for the transformation, not the key (name might have changed)
-    //
-    int index = transformationMap.indexOf( transMeta );
-    if ( index >= 0 ) {
-      transformationMap.remove( index );
-    }
-
-    spoon.refreshTree();
-    spoon.enableMenus();
-  }
-
   public void addTransGraph( TransMeta transMeta ) {
     boolean added = addTransformation( transMeta );
-    if ( added ) {
-      // See if there already is a tab for this graph with the short default name.
-      // If there is, set that one to show the location as well.
-      // If not, simply add it without
-      // If no, add it
-      // If yes, select that tab
-      //
-      boolean showLocation = false;
-      boolean addTab = true;
-      String tabName = spoon.delegates.tabs.makeTabName( transMeta, showLocation );
-      TabMapEntry tabEntry = spoon.delegates.tabs.findTabMapEntry( tabName, ObjectType.TRANSFORMATION_GRAPH );
-      if ( tabEntry != null ) {
-        // We change the already loaded transformation to also show the location.
-        //
-        showLocation = true;
-
-        // Try again, including the location of the object...
-        //
-        tabName = spoon.delegates.tabs.makeTabName( transMeta, showLocation );
-        TabMapEntry exactSameEntry =
-          spoon.delegates.tabs.findTabMapEntry( tabName, ObjectType.TRANSFORMATION_GRAPH );
-        if ( exactSameEntry != null ) {
-          // Already loaded, simply select the tab item in question...
-          //
-          addTab = false;
-        } else {
-          // We might need to rename the tab of the entry already loaded!
-          //
-          tabEntry.setShowingLocation( true );
-          String newTabName = spoon.delegates.tabs.makeTabName( tabEntry.getObject().getMeta(), showLocation );
-          tabEntry.getTabItem().setText( newTabName );
-        }
-      }
-
-      if ( addTab ) {
-        TransGraph transGraph = new TransGraph( spoon.tabfolder.getSwtTabset(), spoon, transMeta );
-        TabItem tabItem = new TabItem( spoon.tabfolder, tabName, tabName );
-        String toolTipText =
-          BaseMessages.getString( PKG, "Spoon.TabTrans.Tooltip", spoon.delegates.tabs.makeTabName(
-            transMeta, showLocation ) );
-        if ( !Const.isEmpty( transMeta.getFilename() ) ) {
-          toolTipText += Const.CR + Const.CR + transMeta.getFilename();
-        }
-        tabItem.setToolTipText( toolTipText );
-        tabItem.setImage( GUIResource.getInstance().getImageTransGraph() );
-        tabItem.setControl( transGraph );
-        TransLogTable logTable = transMeta.getTransLogTable();
-
-        // OK, also see if we need to open a new history window.
-        if ( logTable.getDatabaseMeta() != null
-          && !Const.isEmpty( logTable.getTableName() ) && !transMeta.isSlaveTransformation() ) {
-          transGraph.addAllTabs();
-          transGraph.extraViewTabFolder.setSelection( transGraph.transHistoryDelegate.getTransHistoryTab() );
-        }
-
-        String versionLabel =
-          transMeta.getObjectRevision() == null ? null : transMeta.getObjectRevision().getName();
-
-        tabEntry =
-          new TabMapEntry( tabItem, transMeta.getFilename(), transMeta.getName(), transMeta
-            .getRepositoryDirectory(), versionLabel, transGraph, ObjectType.TRANSFORMATION_GRAPH );
-        tabEntry.setShowingLocation( showLocation );
-
-        spoon.delegates.tabs.addTab( tabEntry );
-      }
-
-      int idx = spoon.tabfolder.indexOf( tabEntry.getTabItem() );
-
-      // keep the focus on the graph
-      spoon.tabfolder.setSelected( idx );
-
-      spoon.setUndoMenu( transMeta );
-      spoon.enableMenus();
-    } else {
-      TabMapEntry tabEntry = spoon.delegates.tabs.findTabMapEntry( transMeta );
-      if ( tabEntry != null ) {
-        int idx = spoon.tabfolder.indexOf( tabEntry.getTabItem() );
-
-        // keep the focus on the graph
-        spoon.tabfolder.setSelected( idx );
-
-        spoon.setUndoMenu( transMeta );
-        spoon.enableMenus();
-      }
-    }
-  }
-
-  public void tabSelected( TabItem item ) {
-    List<TabMapEntry> collection = spoon.delegates.tabs.getTabs();
-
-    // See which core objects to show
-    //
-    for ( TabMapEntry entry : collection ) {
-      if ( item.equals( entry.getTabItem() ) ) {
-        // TabItemInterface itemInterface = entry.getObject();
-
-        //
-        // Another way to implement this may be to keep track of the
-        // state of the core object tree in method
-        // addCoreObjectsToTree()
-        //
-        if ( entry.getObject() instanceof TransGraph || entry.getObject() instanceof JobGraph ) {
-          EngineMetaInterface meta = entry.getObject().getMeta();
-          if ( meta != null ) {
-            meta.setInternalKettleVariables();
-          }
-          if ( spoon.getCoreObjectsState() != SpoonInterface.STATE_CORE_OBJECTS_SPOON ) {
-            spoon.refreshCoreObjects();
-          }
-        }
-      }
-    }
-
-    // Also refresh the tree
-    spoon.refreshTree();
-    spoon.enableMenus();
-  }
-
-  public List<TransMeta> getTransformationList() {
-    return transformationMap;
-  }
-
-  public TransMeta getTransformation( String name ) {
-    TabMapEntry entry = spoon.delegates.tabs.findTabMapEntry( name, ObjectType.TRANSFORMATION_GRAPH );
-    if ( entry != null ) {
-      return (TransMeta) entry.getObject().getManagedObject();
-    }
-    // Try again, TODO: remove part below
-    //
-    for ( TransMeta xform : transformationMap ) {
-      if ( name != null && name.equals( xform.getName() ) ) {
-        return xform;
-      }
-    }
-    return null;
-  }
-
-  public void removeTransformation( TransMeta transMeta ) {
-    transformationMap.remove( transMeta );
-  }
-
-  public TransMeta[] getLoadedTransformations() {
-    return transformationMap.toArray( new TransMeta[transformationMap.size()] );
-  }
-
-  public TransGraph findTransGraphOfTransformation( TransMeta transMeta ) {
-    // Now loop over the entries in the tab-map
-    for ( TabMapEntry mapEntry : spoon.delegates.tabs.getTabs() ) {
-      if ( mapEntry.getObject() instanceof TransGraph ) {
-        TransGraph transGraph = (TransGraph) mapEntry.getObject();
-        if ( transGraph.getMeta().equals( transMeta ) ) {
-          return transGraph;
-        }
-      }
-    }
-    return null;
-  }
-
-  public boolean isDefaultTransformationName( String name ) {
-    if ( !name.startsWith( Spoon.STRING_TRANSFORMATION ) ) {
-      return false;
-    }
-
-    // see if there are only digits behind the transformation...
-    // This will detect:
-    // "Transformation"
-    // "Transformation "
-    // "Transformation 1"
-    // "Transformation 2"
-    // ...
-    for ( int i = Spoon.STRING_TRANSFORMATION.length() + 1; i < name.length(); i++ ) {
-      if ( !Character.isDigit( name.charAt( i ) ) ) {
-        return false;
-      }
-    }
-    return true;
+    TransGraph transGraph = new TransGraph( ge, transMeta );
+    ge.setActiveTransGraph(transGraph);
   }
 
   public void executeTransformation( final TransMeta transMeta, final boolean local, final boolean remote,
@@ -342,10 +118,10 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
     }
 
     // Set repository and safe mode information in both the exec config and the metadata
-    transMeta.setRepository( spoon.rep );
-    transMeta.setMetaStore( spoon.metaStore );
+    transMeta.setRepository( ge.getRepository() );
+    //TODO: transMeta.setMetaStore( spoon.metaStore );
 
-    executionConfiguration.setRepository( spoon.rep );
+    executionConfiguration.setRepository( ge.getRepository() );
 
     executionConfiguration.setSafeModeEnabled( safe );
 
@@ -397,35 +173,14 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
       }
     }
 
-    int debugAnswer = TransDebugDialog.DEBUG_CONFIG;
+    //Always executing locally to Carte
+    executionConfiguration.setExecutingLocally( true );
+    executionConfiguration.setExecutingRemotely( false );
+    executionConfiguration.setExecutingClustered( false );
 
-    if ( debug || preview ) {
-      transDebugMeta.getTransMeta().setRepository( spoon.rep ); // pass repository for mappings
-      TransDebugDialog transDebugDialog = new TransDebugDialog( spoon.getShell(), transDebugMeta );
-      debugAnswer = transDebugDialog.open();
-      if ( debugAnswer != TransDebugDialog.DEBUG_CANCEL ) {
-        executionConfiguration.setExecutingLocally( true );
-        executionConfiguration.setExecutingRemotely( false );
-        executionConfiguration.setExecutingClustered( false );
-      } else {
-        // If we cancel the debug dialog, we don't go further with the execution either.
-        //
-        return;
-      }
-    } else {
-      if ( transMeta.findFirstUsedClusterSchema() != null ) {
-        executionConfiguration.setExecutingLocally( false );
-        executionConfiguration.setExecutingRemotely( false );
-        executionConfiguration.setExecutingClustered( true );
-      } else {
-        executionConfiguration.setExecutingLocally( true );
-        executionConfiguration.setExecutingRemotely( false );
-        executionConfiguration.setExecutingClustered( false );
-      }
-    }
 
-    Object[] data = spoon.variables.getData();
-    String[] fields = spoon.variables.getRowMeta().getFieldNames();
+    Object[] data = ge.getVariables().getData();
+    String[] fields = ge.getVariables().getRowMeta().getFieldNames();
     Map<String, String> variableMap = new HashMap<String, String>();
     variableMap.putAll( executionConfiguration.getVariables() ); // the default
     for ( int idx = 0; idx < fields.length; idx++ ) {
@@ -438,12 +193,12 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
 
     executionConfiguration.setVariables( variableMap );
     executionConfiguration.getUsedVariables( transMeta );
-    executionConfiguration.getUsedArguments( transMeta, spoon.getArguments() );
+    //executionConfiguration.getUsedArguments( transMeta, spoon.getArguments() );
     executionConfiguration.setReplayDate( replayDate );
 
     executionConfiguration.setLogLevel( logLevel );
 
-    boolean execConfigAnswer = true;
+/*  TODO:  boolean execConfigAnswer = true;
 
     if ( debugAnswer == TransDebugDialog.DEBUG_CONFIG && replayDate == null ) {
       TransExecutionConfigurationDialog dialog =
@@ -471,11 +226,11 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
           }
         }
       }
-
+*/
       // addTransLog(transMeta, executionConfiguration.isExecutingLocally());
       // TransLog transLog = spoon.getActiveTransLog();
       //
-      TransGraph activeTransGraph = spoon.getActiveTransGraph();
+      TransGraph activeTransGraph = ge.getActiveTransGraph();
 
       // Is this a local execution?
       //
@@ -483,153 +238,15 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
         if ( debug || preview ) {
           activeTransGraph.debug( executionConfiguration, transDebugMeta );
         } else {
-          activeTransGraph.start( executionConfiguration );
+          //TODO: activeTransGraph.start( executionConfiguration );
+        	throw new IllegalArgumentException("Only degbug currently supported");
         }
 
         // Are we executing remotely?
         //
-      } else if ( executionConfiguration.isExecutingRemotely() ) {
-        activeTransGraph.handleTransMetaChanges( transMeta );
-        if ( executionConfiguration.getRemoteServer() != null ) {
-          String carteObjectId =
-            Trans.sendToSlaveServer( transMeta, executionConfiguration, spoon.rep, spoon.metaStore );
-          monitorRemoteTrans( transMeta, carteObjectId, executionConfiguration.getRemoteServer() );
-          spoon.delegates.slaves.addSpoonSlave( executionConfiguration.getRemoteServer() );
-
-        } else {
-          MessageBox mb = new MessageBox( spoon.getShell(), SWT.OK | SWT.ICON_INFORMATION );
-          mb.setMessage( BaseMessages.getString( PKG, "Spoon.Dialog.NoRemoteServerSpecified.Message" ) );
-          mb.setText( BaseMessages.getString( PKG, "Spoon.Dialog.NoRemoteServerSpecified.Title" ) );
-          mb.open();
-        }
-
-        // Are we executing clustered?
-        //
-      } else if ( executionConfiguration.isExecutingClustered() ) {
-        activeTransGraph.handleTransMetaChanges( transMeta );
-        splitTrans( transMeta, executionConfiguration );
-      }
+      } 
+      else {
+    	  throw new IllegalArgumentException("Only Carte local execution is supported.");
     }
   }
-
-  private void monitorRemoteTrans( final TransMeta transMeta, final String carteObjectId,
-    final SlaveServer remoteSlaveServer ) {
-    // There is a transformation running in the background. When it finishes, clean it up and log the result on the
-    // console.
-    // Launch in a separate thread to prevent GUI blocking...
-    //
-    Thread thread = new Thread( new Runnable() {
-      public void run() {
-        Trans.monitorRemoteTransformation( spoon.getLog(), carteObjectId, transMeta.toString(), remoteSlaveServer );
-      }
-    } );
-
-    thread.setName( "Monitor remote transformation '"
-      + transMeta.getName() + "', carte object id=" + carteObjectId + ", slave server: "
-      + remoteSlaveServer.getName() );
-    thread.start();
-
-  }
-
-  protected void splitTrans( final TransMeta transMeta, final TransExecutionConfiguration executionConfiguration ) throws KettleException {
-    try {
-      final TransSplitter transSplitter = new TransSplitter( transMeta );
-
-      transSplitter.splitOriginalTransformation();
-
-      TransMeta master = transSplitter.getMaster();
-      SlaveServer masterServer = null;
-      List<StepMeta> masterSteps = master.getTransHopSteps( false );
-
-      // add transgraph of transmetas if showing is true
-      SlaveServer[] slaves = transSplitter.getSlaveTargets();
-
-      if ( executionConfiguration.isClusterShowingTransformation() ) {
-        if ( masterSteps.size() > 0 ) {
-          // If there is something that needs to be done on the master...
-          masterServer = transSplitter.getMasterServer();
-          addTransGraph( master );
-        }
-
-        // Then the slaves...
-        //
-        for ( int i = 0; i < slaves.length; i++ ) {
-          TransMeta slaveTrans = transSplitter.getSlaveTransMap().get( slaves[i] );
-          addTransGraph( slaveTrans );
-        }
-      }
-
-      // Inject certain internal variables to make it more intuitive.
-      //
-      for ( String var : Const.INTERNAL_TRANS_VARIABLES ) {
-        executionConfiguration.getVariables().put( var, transMeta.getVariable( var ) );
-      }
-      for ( String var : Const.INTERNAL_JOB_VARIABLES ) {
-        executionConfiguration.getVariables().put( var, transMeta.getVariable( var ) );
-      }
-
-      // Parameters override the variables.
-      // For the time being we're passing the parameters over the wire as variables...
-      //
-      TransMeta ot = transSplitter.getOriginalTransformation();
-      for ( String param : ot.listParameters() ) {
-        String value =
-          Const.NVL( ot.getParameterValue( param ), Const.NVL( ot.getParameterDefault( param ), ot
-            .getVariable( param ) ) );
-        if ( !Const.isEmpty( value ) ) {
-          executionConfiguration.getVariables().put( param, value );
-        }
-      }
-
-      try {
-        Trans.executeClustered( transSplitter, executionConfiguration );
-      } catch ( Exception e ) {
-        // Something happened posting the transformation to the cluster.
-        // We need to make sure to de-allocate ports and so on for the next try...
-        //
-        Trans.cleanupCluster( log, transSplitter );
-
-        throw e;
-      }
-
-      if ( executionConfiguration.isClusterPosting() ) {
-        // Now add monitors for the master and all the slave servers
-        //
-        if ( masterServer != null ) {
-          spoon.addSpoonSlave( masterServer );
-          for ( int i = 0; i < slaves.length; i++ ) {
-            spoon.addSpoonSlave( slaves[i] );
-          }
-        }
-      }
-
-      // OK, we should also start monitoring of the cluster in the background.
-      // Stop them all if one goes bad.
-      // Also clean up afterwards, close sockets, etc.
-      //
-      // Launch in a separate thread to prevent GUI blocking...
-      //
-      new Thread( new Runnable() {
-        public void run() {
-          Trans.monitorClusteredTransformation( log, transSplitter, null );
-          Result result = Trans.getClusteredTransformationResult( log, transSplitter, null );
-          log.logBasic( "-----------------------------------------------------" );
-          log.logBasic( "Got result back from clustered transformation:" );
-          log.logBasic( transMeta.toString(), "-----------------------------------------------------" );
-          log.logBasic( transMeta.toString(), "Errors : " + result.getNrErrors() );
-          log.logBasic( transMeta.toString(), "Input : " + result.getNrLinesInput() );
-          log.logBasic( transMeta.toString(), "Output : " + result.getNrLinesOutput() );
-          log.logBasic( transMeta.toString(), "Updated : " + result.getNrLinesUpdated() );
-          log.logBasic( transMeta.toString(), "Read : " + result.getNrLinesRead() );
-          log.logBasic( transMeta.toString(), "Written : " + result.getNrLinesWritten() );
-          log.logBasic( transMeta.toString(), "Rejected : " + result.getNrLinesRejected() );
-          log.logBasic( transMeta.toString(), "-----------------------------------------------------" );
-        }
-      } ).start();
-
-    } catch ( Exception e ) {
-      throw new KettleException( e );
-    }
-  }
-
 }
