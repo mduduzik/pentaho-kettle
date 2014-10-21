@@ -84,7 +84,7 @@ public class TransPreviewDelegate  extends GraphEditorDelegate {
   }
 
   public void showPreviewView() {
-      addTransPreview();
+      schedulePreviewDataCollection();
       //transGraph.checkEmptyExtraView();
   }
 
@@ -92,7 +92,7 @@ public class TransPreviewDelegate  extends GraphEditorDelegate {
    * Add a grid with the execution metrics per step in a table view
    *
    */
-  public void addTransPreview() {
+  public void schedulePreviewDataCollection() {
   }
 
 

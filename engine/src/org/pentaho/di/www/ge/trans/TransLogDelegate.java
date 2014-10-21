@@ -51,7 +51,7 @@ public class TransLogDelegate   extends GraphEditorDelegate {
     this.transGraph = transGraph;
   }
 
-  public void addTransLog() {
+  public void scheduleLogDataCollection() {
 /*
     logBrowser = new LogBrowser( transGraph );
     logBrowser.installLogSniffer();
@@ -78,7 +78,7 @@ public class TransLogDelegate   extends GraphEditorDelegate {
     //
     // XulToolbarButton showLogXulButton = toolbar.getButtonById("trans-show-log");
     // ToolItem toolBarButton = (ToolItem) showLogXulButton.getNativeObject();
-    addTransLog();
+    scheduleLogDataCollection();
 
     // spoon.addTransLog(transMeta);
   }

@@ -81,7 +81,7 @@ public class TransPerfDelegate extends GraphEditorDelegate {
     this.transGraph = transGraph;
   }
 
-  public void addTransPerf() {
+  public void schedulePerfDataCollection() {
   }
 
   /**
@@ -98,7 +98,7 @@ public class TransPerfDelegate extends GraphEditorDelegate {
     // ToolItem toolBarButton = (ToolItem) showLogXulButton.getNativeObject();
 
     if ( transPerfTab == null || transPerfTab.isDisposed() ) {
-      addTransPerf();
+      schedulePerfDataCollection();
     } else {
       transPerfTab.dispose();
     }

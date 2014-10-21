@@ -63,7 +63,7 @@ public class TransMetricsDelegate extends GraphEditorDelegate {
     this.transGraph = transGraph;
   }
 
-  public void addTransMetrics() {
+  public void scheduleMetricsDataCollection() {
     // First, see if we need to add the extra view...
     //
  /*   if ( transGraph.extraViewComposite == null || transGraph.extraViewComposite.isDisposed() ) {
@@ -121,7 +121,7 @@ public class TransMetricsDelegate extends GraphEditorDelegate {
     // XulToolbarButton showLogXulButton =
     // toolbar.getButtonById("trans-show-log");
     // ToolItem toolBarButton = (ToolItem) showLogXulButton.getNativeObject();
-      addTransMetrics();
+      scheduleMetricsDataCollection();
   }
 
   public void updateGraph() {

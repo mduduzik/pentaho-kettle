@@ -5,6 +5,7 @@ import java.util.Map;
 
 public final class GERequest{
 	public static final String PARAM_META_OBJECT_ID = "PARAM_META_OBJECT_ID";
+	public static final String PARAM_CARTE_OBJECT_ID = "PARAM_CARTE_OBJECT_ID";
 	public static final String PARAM_META_NAME = "PARAM_META_NAME";
 	public static final String PARAM_REPOSITORY_ID = "PARAM_REPOSITORY_ID";
 	public static final String PARAM_REPOSITORY_USERNAME = "PARAM_REPOSITORY_USERNAME";

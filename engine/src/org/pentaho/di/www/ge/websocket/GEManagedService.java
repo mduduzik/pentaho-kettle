@@ -8,7 +8,10 @@ import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.MetaBroadcaster;
 import org.pentaho.di.www.BaseWebSocket;
+import org.pentaho.di.www.ge.GraphEditor;
 
 import java.io.IOException;
 
@@ -17,16 +20,28 @@ import javax.inject.Inject;
 /**
  * GrapEditorDelegate WebSocket - Spoon-lite in Carte
  */
-@ManagedService(path = "/ged/{usertoken: [a-zA-Z][a-zA-Z_0-9]*}")
-public final class GEWebService extends BaseWebSocket {
-	private static Class<?> PKG = GEWebService.class; //
+@ManagedService(path = GEManagedService.PATH+"usertoken: [a-zA-Z][a-zA-Z_0-9]*}")
+public final class GEManagedService extends BaseWebSocket {
+	private static Class<?> PKG = GEManagedService.class; //
+	
+	public final static String PATH = "/ged/";
 
 	@PathParam("usertoken")
 	private String usertoken;
 	
     @Inject
+    private BroadcasterFactory factory;
+
+    @Inject
     private AtmosphereResourceFactory resourceFactory;
 
+    @Inject
+    private MetaBroadcaster metaBroadcaster;
+
+	private GraphEditor ge;
+
+	private String uuid;
+    
 	/**
 	 * Invoked when the connection as been fully established and suspended, e.g
 	 * ready for receiving messages.
@@ -36,7 +51,9 @@ public final class GEWebService extends BaseWebSocket {
 	 */
 	@Ready
 	public final void onReady(final AtmosphereResource r) {
-		logBasic("Browser {} connected.", r.uuid());
+		logBasic("GraphEditor %s for user %s connected.", r.uuid(), usertoken);
+		this.uuid = r.uuid();
+		ge = new GraphEditor(this);
 	}
 
 	/**
@@ -64,12 +81,16 @@ public final class GEWebService extends BaseWebSocket {
      * @return the chat message
      * @throws IOException
      */
-	@Message(encoders = { GERequestEncoderDecoder.class }, decoders = { GERequestEncoderDecoder.class })
-	public final GERequest onMessage(final GERequest message)
+	@Message(encoders = { GEResponseEncoderDecoder.class }, decoders = { GERequestEncoderDecoder.class })
+	public final GEResponse onRequest(final GERequest request)
 			throws IOException {
-/*		logBasic("{} just send {}", message.getTransName(),
-				message.getObjectId());*/
-		return message;
+		logBasic("{} just send {}", request.getStringParam(GERequest.PARAM_META_NAME),
+				request.getStringParam(GERequest.PARAM_META_OBJECT_ID));
+		return ge.handleRequest(request);
 	}
 
+	public void broadcast(String subTopic, Object message) {
+		AtmosphereResource r = resourceFactory.find(this.uuid);
+		factory.lookup(PATH+subTopic).broadcast(message, r);
+	}
 }

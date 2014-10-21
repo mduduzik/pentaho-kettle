@@ -50,7 +50,7 @@ public class TransHistoryDelegate  extends GraphEditorDelegate {
     this.transGraph = transGraph;
   }
 
-  public void addTransHistory() {
+  public void scheduleHistoryDataCollection() {
   }
 
   /**
