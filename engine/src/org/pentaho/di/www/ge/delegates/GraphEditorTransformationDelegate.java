@@ -37,7 +37,6 @@ import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.debug.StepDebugMeta;
 import org.pentaho.di.trans.debug.TransDebugMeta;
 import org.pentaho.di.trans.step.StepMeta;
-import org.pentaho.di.ui.core.PropsUI;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.trans.TransGraph;
 
@@ -141,7 +140,7 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
         transDebugMeta.getStepDebugMetaMap().clear();
         for ( StepMeta stepMeta : transMeta.getSelectedSteps() ) {
           StepDebugMeta stepDebugMeta = new StepDebugMeta( stepMeta );
-          stepDebugMeta.setRowCount( PropsUI.getInstance().getDefaultPreviewSize() );
+          stepDebugMeta.setRowCount( 100);
           stepDebugMeta.setPausingOnBreakPoint( true );
           stepDebugMeta.setReadingFirstRows( false );
           transDebugMeta.getStepDebugMetaMap().put( stepMeta, stepDebugMeta );
@@ -165,7 +164,7 @@ public class GraphEditorTransformationDelegate extends GraphEditorDelegate {
         transDebugMeta.getStepDebugMetaMap().clear();
         for ( StepMeta stepMeta : transMeta.getSelectedSteps() ) {
           StepDebugMeta stepDebugMeta = new StepDebugMeta( stepMeta );
-          stepDebugMeta.setRowCount( PropsUI.getInstance().getDefaultPreviewSize() );
+          stepDebugMeta.setRowCount( 100 );
           stepDebugMeta.setPausingOnBreakPoint( false );
           stepDebugMeta.setReadingFirstRows( true );
           transDebugMeta.getStepDebugMetaMap().put( stepMeta, stepDebugMeta );

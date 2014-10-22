@@ -209,19 +209,11 @@ public class WebServer {
     jerseyServletHolder.setInitParameter( "com.sun.jersey.config.property.packages", "org.pentaho.di.www.jaxrs" );
     rootHandler.addServlet( jerseyServletHolder, "/api/*" );
 
-    // setup static resource serving
-    // ResourceHandler mobileResourceHandler = new ResourceHandler();
-    // mobileResourceHandler.setWelcomeFiles(new String[]{"index.html"});
-    // mobileResourceHandler.setResourceBase(getClass().getClassLoader().
-    //   getResource("org/pentaho/di/www/mobile").toExternalForm());
-    // Context mobileContext = new Context(contexts, "/mobile", Context.SESSIONS);
-    // mobileContext.setHandler(mobileResourceHandler);
-    
     
     // Atmosphere 
 	AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
     ServletHolder servletHolder = new ServletHolder(atmosphereServlet);
-    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websockets");
+    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
     servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
     servletHolder.setAsyncSupported(true);
     servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");

@@ -22,26 +22,7 @@
 
 package org.pentaho.di.www.ge.trans;
 
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import org.pentaho.di.core.Const;
-import org.pentaho.di.core.gui.Point;
-import org.pentaho.di.core.logging.LoggingObjectInterface;
-import org.pentaho.di.core.logging.LoggingRegistry;
-import org.pentaho.di.core.logging.MetricsPainter;
-import org.pentaho.di.core.logging.MetricsPainter.MetricsDrawArea;
-import org.pentaho.di.core.metrics.MetricsDuration;
-import org.pentaho.di.core.metrics.MetricsUtil;
-import org.pentaho.di.i18n.BaseMessages;
-import org.pentaho.di.ui.core.PropsUI;
-import org.pentaho.di.ui.core.gui.GUIResource;
-import org.pentaho.di.ui.spoon.SWTGC;
-import org.pentaho.di.ui.spoon.Spoon;
-import org.pentaho.di.ui.spoon.delegates.SpoonDelegate;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegate;
 
@@ -51,8 +32,6 @@ public class TransMetricsDelegate extends GraphEditorDelegate {
   // private static final LogWriter log = LogWriter.getInstance();
 
   private TransGraph transGraph;
-
-  private List<MetricsDrawArea> drawAreas;
 
   /**
    * @param spoon

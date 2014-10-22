@@ -22,15 +22,6 @@
 
 package org.pentaho.di.www.ge.trans;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.ResourceBundle;
-
-import org.pentaho.di.core.Const;
-import org.pentaho.di.core.logging.KettleLogStore;
-import org.pentaho.di.i18n.BaseMessages;
-import org.pentaho.di.trans.TransMeta;
-import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegate;
 

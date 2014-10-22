@@ -25,27 +25,12 @@ package org.pentaho.di.www.ge.trans;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.pentaho.di.core.Const;
-import org.pentaho.di.core.Props;
-import org.pentaho.di.core.logging.HasLogChannelInterface;
-import org.pentaho.di.core.logging.KettleLogLayout;
-import org.pentaho.di.core.logging.KettleLogStore;
-import org.pentaho.di.core.logging.KettleLoggingEvent;
-import org.pentaho.di.core.logging.LogChannelInterface;
-import org.pentaho.di.core.logging.LogLevel;
 import org.pentaho.di.core.logging.LogParentProvidedInterface;
-import org.pentaho.di.core.logging.LoggingRegistry;
-import org.pentaho.di.i18n.BaseMessages;
-import org.pentaho.di.ui.core.ConstUI;
-import org.pentaho.di.ui.core.gui.GUIResource;
-import org.pentaho.di.ui.spoon.Spoon;
+import org.pentaho.di.www.ge.GraphEditor;
 
 public class LogBrowser {
-  private static Class<?> PKG = Spoon.class; // for i18n purposes, needed by Translator2!!
+  private static Class<?> PKG = GraphEditor.class; // for i18n purposes, needed by Translator2!!
 
   private LogParentProvidedInterface logProvider;
   private List<String> childIds = new ArrayList<String>();

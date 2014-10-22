@@ -24,10 +24,6 @@ package org.pentaho.di.www.ge.trans;
 
 import java.util.List;
 import java.util.Map;
-import org.eclipse.swt.custom.CTabItem;
-import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.widgets.Canvas;
-import org.eclipse.swt.widgets.Composite;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.performance.StepPerformanceSnapShot;
 import org.pentaho.di.www.ge.GraphEditor;
@@ -59,17 +55,11 @@ public class TransPerfDelegate extends GraphEditorDelegate {
 
   private TransGraph transGraph;
 
-  private CTabItem transPerfTab;
 
   private Map<String, List<StepPerformanceSnapShot>> stepPerformanceSnapShots;
   private String[] steps;
-  private org.eclipse.swt.widgets.List stepsList;
-  private Canvas canvas;
-  private Image image;
   private long timeDifference;
   private String title;
-  private org.eclipse.swt.widgets.List dataList;
-  private Composite perfComposite;
   private boolean emptyGraph;
 
   /**
@@ -97,30 +87,14 @@ public class TransPerfDelegate extends GraphEditorDelegate {
     // XulToolbarButton showLogXulButton = toolbar.getButtonById("trans-show-log");
     // ToolItem toolBarButton = (ToolItem) showLogXulButton.getNativeObject();
 
-    if ( transPerfTab == null || transPerfTab.isDisposed() ) {
-      schedulePerfDataCollection();
-    } else {
-      transPerfTab.dispose();
-    }
   }
-  /**
-   * @return the transHistoryTab
-   */
-  public CTabItem getTransPerfTab() {
-    return transPerfTab;
-  }
+
 
   /**
    * @return the emptyGraph
    */
   public boolean isEmptyGraph() {
     return emptyGraph;
-  }
-
-  public void layoutPerfComposite() {
-    if ( !perfComposite.isDisposed() ) {
-      perfComposite.layout( true, true );
-    }
   }
 
 }
