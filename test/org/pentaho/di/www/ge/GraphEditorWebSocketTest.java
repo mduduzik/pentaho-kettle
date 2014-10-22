@@ -22,26 +22,22 @@
 
 package org.pentaho.di.www.ge;
 
-import java.io.File;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.StringReader;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletException;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.wasync.Client;
 import org.atmosphere.wasync.ClientFactory;
 import org.atmosphere.wasync.Decoder;
 import org.atmosphere.wasync.Encoder;
 import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.Function;
-import org.atmosphere.wasync.OptionsBuilder;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.RequestBuilder;
 import org.atmosphere.wasync.Socket;
@@ -52,31 +48,26 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.eclipse.jetty.plus.jaas.JAASLoginService;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.HashLoginService;
-import org.eclipse.jetty.server.LocalConnector;
+import org.eclipse.jetty.client.ContentExchange;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.security.Realm;
+import org.eclipse.jetty.client.security.SimpleRealmResolver;
+import org.eclipse.jetty.http.HttpMethods;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.io.AbstractBuffer;
+import org.eclipse.jetty.io.ByteArrayBuffer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.testing.HttpTester;
-import org.eclipse.jetty.util.security.Constraint;
-import org.eclipse.jetty.util.security.Credential;
-import org.pentaho.di.cluster.SlaveServer;
-import org.pentaho.di.core.Const;
-import org.pentaho.di.core.exception.KettleXMLException;
+import org.eclipse.jetty.util.IO;
 import org.pentaho.di.core.logging.LogChannel;
-import org.pentaho.di.core.plugins.CartePluginType;
-import org.pentaho.di.core.plugins.PluginInterface;
-import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.row.ValueMeta;
 import org.pentaho.di.core.row.ValueMetaInterface;
+import org.pentaho.di.core.row.value.ValueMetaBase;
 import org.pentaho.di.core.xml.XMLHandler;
-import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransConfiguration;
 import org.pentaho.di.trans.TransExecutionConfiguration;
@@ -84,7 +75,6 @@ import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.TransPreviewFactory;
 import org.pentaho.di.trans.steps.rowgenerator.RowGeneratorMeta;
 import org.pentaho.di.www.AddTransServlet;
-import org.pentaho.di.www.CartePluginInterface;
 import org.pentaho.di.www.CarteSingleton;
 import org.pentaho.di.www.GetRootServlet;
 import org.pentaho.di.www.GetStatusServlet;
@@ -99,18 +89,13 @@ import org.pentaho.di.www.WebResult;
 import org.pentaho.di.www.ge.trans.TransGridUpdate;
 import org.pentaho.di.www.ge.websocket.GERequest;
 import org.pentaho.di.www.ge.websocket.GEResponse;
-import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import org.w3c.dom.html.HTMLDocument;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gdata.data.docs.DocumentExportRequestor;
-import com.sun.jersey.spi.container.servlet.ServletContainer;
 
 public class GraphEditorWebSocketTest {
     private final static Logger logger = LoggerFactory.getLogger(GraphEditorWebSocketTest.class);
@@ -122,9 +107,13 @@ public class GraphEditorWebSocketTest {
 
 	private AtmosphereClient wAsyncClient;
 
+    private Server _server;
+    private HttpClient _client;
+    private Realm _realm;
+    private String _protocol;
+    private String _baseUrl;
+    private String _requestContent;
 	private RequestBuilder requestBuilder;
-	private ServletTester tester;
-	private int localPort;
 
 	@Before
 	public void before() {
@@ -134,64 +123,15 @@ public class GraphEditorWebSocketTest {
 		carte.setSocketRepository(new SocketRepository(new LogChannel("Carte")));
 		
 		
-	    tester = new ServletTester(false);//socket connection for ws
-
-
-	    // Add all the servlets defined in kettle-servlets.xml ...
-	    //
-	    ContextHandlerCollection contexts = new ContextHandlerCollection();
-	    HandlerList handlers = new HandlerList();
-	    
-	    // Root
-	    //
-	    ServletContextHandler rootHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    rootHandler.setContextPath(GetRootServlet.CONTEXT_PATH);
-	    handlers.addHandler(rootHandler);
-	    GetRootServlet rootServlet = new GetRootServlet();
-	    rootServlet.setJettyMode( true );
-	    rootHandler.addServlet( new ServletHolder( rootServlet ), "/*" );
-
-		  ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(GetStatusServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  ServletHolder servletHolder = new ServletHolder( GetStatusServlet.class );
-		  rootHandler.addServlet( servletHolder, GetStatusServlet.CONTEXT_PATH+"/*" );
-		
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(AddTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( AddTransServlet.class );
-		  rootHandler.addServlet( servletHolder, AddTransServlet.CONTEXT_PATH);
-		
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(StartTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( StartTransServlet.class );
-		  rootHandler.addServlet( servletHolder, StartTransServlet.CONTEXT_PATH+"/*" );
-		  
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(PauseTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( PauseTransServlet.class );
-		  rootHandler.addServlet( servletHolder, PauseTransServlet.CONTEXT_PATH+"/*" );
-	      
-	    // Atmosphere 
-		AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
-	    servletHolder = new ServletHolder(atmosphereServlet);
-	    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
-	    //holder.setInitParameter("org.atmosphere.cpr.packages", "org.pentaho.di.www.ge.websocket");
-	    servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
-	    servletHolder.setAsyncSupported(true);
-	    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
-	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    context.addServlet(servletHolder, "/websockets/*");
-	    handlers.addHandler(context);
-
-	    // add all handlers/contexts to server
-	    tester.getServer().setHandler(handlers);
-
 		try {
-			tester.getServer().start();
+	        _server = new Server();
+	        configureServer(_server);
+	        _server.start();
+	
+	        int port = _server.getConnectors()[0].getLocalPort();
+	        _baseUrl = _protocol+"://localhost:"+port+ "/";
+
+
 			System.out.println("Started");
 			
 			carteObjectId = addTransServlet();
@@ -205,7 +145,7 @@ public class GraphEditorWebSocketTest {
 		wAsyncClient = ClientFactory.getDefault().newClient(AtmosphereClient.class);
         requestBuilder = wAsyncClient.newRequestBuilder()
                 .method(Request.METHOD.GET)
-                .uri("http://127.0.0.1:"+localPort+ "/ged/tenant1000")
+                .uri(_baseUrl+ "/ged/tenant1000")
                 .trackMessageLength(true)
                 .encoder(new Encoder<GERequest, String>() {
                     @Override
@@ -311,18 +251,18 @@ public class GraphEditorWebSocketTest {
                 .transport(Request.TRANSPORT.LONG_POLLING);
 	}
 
-	@After
-	public void after() {
-		try {
-			tester.stop();
-			carte.getDetections().clear();
-			carte.getSocketRepository().closeAll();
-			System.out.println("Stopped");
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			Assert.fail(ex.getMessage());
-		}
-	}
+	/* ------------------------------------------------------------ */
+    @After
+    public void tearDown()
+        throws Exception
+    {
+        if (_server != null)
+        {
+            _server.stop();
+            _server = null;
+        }
+    }
+
 	
 	@Test
 	public void testClient() throws IOException  {
@@ -434,19 +374,19 @@ public class GraphEditorWebSocketTest {
 		A.setRowLimit("10000000");
 
 		A.getFieldName()[0] = "ID";
-		A.getFieldType()[0] = ValueMeta
+		A.getFieldType()[0] = ValueMetaBase
 				.getTypeDesc(ValueMetaInterface.TYPE_INTEGER);
 		A.getFieldLength()[0] = 7;
 		A.getValue()[0] = "1234";
 
 		A.getFieldName()[1] = "Name";
-		A.getFieldType()[1] = ValueMeta
+		A.getFieldType()[1] = ValueMetaBase
 				.getTypeDesc(ValueMetaInterface.TYPE_STRING);
 		A.getFieldLength()[1] = 35;
 		A.getValue()[1] = "Some name";
 
 		A.getFieldName()[2] = "Last updated";
-		A.getFieldType()[2] = ValueMeta
+		A.getFieldType()[2] = ValueMetaBase
 				.getTypeDesc(ValueMetaInterface.TYPE_DATE);
 		A.getFieldFormat()[2] = "yyyy/MM/dd";
 		A.getValue()[2] = "2010/02/09";
@@ -464,22 +404,36 @@ public class GraphEditorWebSocketTest {
 	public String addTransServlet() {
 		String carteObjId = null;
 
-		HttpTester request = new HttpTester();
-		HttpTester response = new HttpTester();
-		request.setMethod("GET");
-		request.setHeader("Host", "tester");
-		request.setURI(AddTransServlet.CONTEXT_PATH + "?xml=Y");
-		request.setVersion("HTTP/1.0");
+		
 		try {
+	        startClient(_realm);
+	        
+	        ContentExchange getExchange = new ContentExchange();
+	        getExchange.setURL(_baseUrl+AddTransServlet.CONTEXT_PATH + "?xml=Y");
+	        getExchange.setRequestHeader("Content-Type", "application/xml");
+	        getExchange.setMethod(HttpMethods.GET);
 
 			TransExecutionConfiguration transExecConfig = new TransExecutionConfiguration();
 			Trans trans = GraphEditorWebSocketTest.generateTestTransformation();
 			TransConfiguration transConfig = new TransConfiguration(
 					trans.getTransMeta(), transExecConfig);
-			request.setContent(transConfig.getXML());
-			response.parse(tester.getResponses(request.generate()));
+			
+	        final AbstractBuffer cb = new ByteArrayBuffer(transConfig.getXML().getBytes("UTF-8"));
+	        getExchange.setRequestContent(cb);
+	        
+	        _client.send(getExchange);
+	        int responseStatus = getExchange.waitForDone();
+	        
+	        String content = "";
+	        if (responseStatus == HttpStatus.OK_200)
+	        {
+	            content = getExchange.getResponseContent();
+	        }
+	    
+	        stopClient();
+	        
 
-			WebResult webResult = new WebResult( XMLHandler.loadXMLString( response.getContent(), WebResult.XML_TAG ) );
+			WebResult webResult = new WebResult( XMLHandler.loadXMLString( content, WebResult.XML_TAG ) );
 			Assert.assertEquals(WebResult.STRING_OK, webResult.getResult());
 
 			SlaveServerStatus status = getStatus();
@@ -500,18 +454,191 @@ public class GraphEditorWebSocketTest {
 	}
 
 	public SlaveServerStatus getStatus() {
-		HttpTester request = new HttpTester();
-		HttpTester response = new HttpTester();
-		request.setMethod("GET");
-		request.setHeader("Host", "tester");
-		request.setURI(GetStatusServlet.CONTEXT_PATH + "?xml=Y");
-		request.setVersion("HTTP/1.0");
+        ContentExchange getExchange = new ContentExchange();
+        getExchange.setURL(_baseUrl+GetStatusServlet.CONTEXT_PATH + "?xml=Y");
+        getExchange.setRequestHeader("Content-Type", "application/xml");
+        getExchange.setRequestHeader("Host", "tester");
+        getExchange.setMethod(HttpMethods.GET);
+        getExchange.setVersion("HTTP/1.0");
+        
 		try {
-			response.parse(tester.getResponses(request.generate()));
-			return SlaveServerStatus.fromXML(response.getContent());
+	        _client.send(getExchange);
+	        int responseStatus = getExchange.waitForDone();
+	        
+	        String content = "";
+	        if (responseStatus == HttpStatus.OK_200)
+	        {
+	            content = getExchange.getResponseContent();
+	        }
+	    
+	        stopClient();
+	        
+			return SlaveServerStatus.fromXML(content);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
 		return null;
 	}
+	
+    protected String getResponseBody(HttpURLConnection conn) throws IOException
+    {
+        InputStream in = null;
+        try
+        {
+            in = conn.getInputStream();
+            return IO.toString(in);
+        }
+        finally
+        {
+            IO.close(in);
+        }
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected void configureServer(Server server)
+        throws Exception
+    {
+        setProtocol("http");
+        
+        SelectChannelConnector connector = new SelectChannelConnector();
+        server.addConnector(connector);
+
+	    // Add all the servlets defined in kettle-servlets.xml ...
+	    //
+	    ContextHandlerCollection contexts = new ContextHandlerCollection();
+	    HandlerList handlers = new HandlerList();
+	    
+	    // Root
+	    //
+	    ServletContextHandler rootHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	    rootHandler.setContextPath(GetRootServlet.CONTEXT_PATH);
+	    handlers.addHandler(rootHandler);
+	    GetRootServlet rootServlet = new GetRootServlet();
+	    rootServlet.setJettyMode( true );
+	    rootHandler.addServlet( new ServletHolder( rootServlet ), "/*" );
+
+		  ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
+		  servletHandler.setContextPath(GetStatusServlet.CONTEXT_PATH);
+		  handlers.addHandler(servletHandler);
+		  ServletHolder servletHolder = new ServletHolder( GetStatusServlet.class );
+		  rootHandler.addServlet( servletHolder, GetStatusServlet.CONTEXT_PATH+"/*" );
+		
+		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
+		  servletHandler.setContextPath(AddTransServlet.CONTEXT_PATH);
+		  handlers.addHandler(servletHandler);
+		  servletHolder = new ServletHolder( AddTransServlet.class );
+		  rootHandler.addServlet( servletHolder, AddTransServlet.CONTEXT_PATH);
+		
+		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
+		  servletHandler.setContextPath(StartTransServlet.CONTEXT_PATH);
+		  handlers.addHandler(servletHandler);
+		  servletHolder = new ServletHolder( StartTransServlet.class );
+		  rootHandler.addServlet( servletHolder, StartTransServlet.CONTEXT_PATH+"/*" );
+		  
+		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
+		  servletHandler.setContextPath(PauseTransServlet.CONTEXT_PATH);
+		  handlers.addHandler(servletHandler);
+		  servletHolder = new ServletHolder( PauseTransServlet.class );
+		  rootHandler.addServlet( servletHolder, PauseTransServlet.CONTEXT_PATH+"/*" );
+	      
+	    // Atmosphere 
+		AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
+	    servletHolder = new ServletHolder(atmosphereServlet);
+	    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
+	    //holder.setInitParameter("org.atmosphere.cpr.packages", "org.pentaho.di.www.ge.websocket");
+	    servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
+	    servletHolder.setAsyncSupported(true);
+	    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
+	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	    context.addServlet(servletHolder, "/websockets/*");
+	    handlers.addHandler(context);
+        
+        
+        server.setHandler( handlers ); 
+
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected void startClient(Realm realm)
+        throws Exception
+    {
+        _client = new HttpClient();
+        configureClient(_client);
+        
+        if (realm != null)
+            _client.setRealmResolver(new SimpleRealmResolver(realm));
+        
+        _client.start();
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected void configureClient(HttpClient client)
+        throws Exception
+    {
+        client.setConnectorType(HttpClient.CONNECTOR_SELECT_CHANNEL);
+    }
+
+    /* ------------------------------------------------------------ */
+    protected void stopClient()
+        throws Exception
+    {
+        if (_client != null)
+        {
+            _client.stop();
+            _client = null;
+        }
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected String getBaseUrl()
+    {
+        return _baseUrl;
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected HttpClient getClient()
+    {
+        return _client;
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected Realm getRealm()
+    {
+        return _realm;
+    }
+    
+    
+    /* ------------------------------------------------------------ */
+    protected void setProtocol(String protocol)
+    {
+        _protocol = protocol;
+    }
+    
+    /* ------------------------------------------------------------ */
+    protected void setRealm(Realm realm)
+    {
+        _realm = realm;
+    }
+    
+    /* ------------------------------------------------------------ */
+    public static void copyStream(InputStream in, OutputStream out)
+    {
+        try
+        {
+            byte[] buffer=new byte[1024];
+            int len;
+            while ((len=in.read(buffer))>=0)
+            {
+                out.write(buffer,0,len);
+            }
+        }
+        catch (EOFException e)
+        {
+            System.err.println(e);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
 }

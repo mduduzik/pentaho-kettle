@@ -22,6 +22,8 @@
     <dependency org="org.mockito"              name="mockito-all"          rev="1.9.5"  transitive="false" conf="test->default"/>
     
     <dependency org="org.eclipse.jetty" name="test-jetty-servlet" rev="7.6.16.v20140903" transitive="false" conf="test->default"/>
+    <dependency org="org.eclipse.jetty" name="jetty-client" rev="7.6.16.v20140903" transitive="false" conf="test->default"/>
+    <dependency org="org.eclipse.jetty.toolchain" name="jetty-test-helper" rev="2.5" transitive="false" conf="test->default"/>
     <dependency org="com.ning" name="async-http-client" rev="1.8.11"  transitive="false" conf="test->default"/>
     <dependency org="io.netty" name="netty" rev="3.9.4.Final" transitive="false" conf="test->default"/>
     <dependency org="org.atmosphere" name="wasync" rev="1.4.0" transitive="false" conf="test->default"/>
