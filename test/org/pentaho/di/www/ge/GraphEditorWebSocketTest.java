@@ -30,6 +30,7 @@ import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -129,7 +130,7 @@ public class GraphEditorWebSocketTest {
 	        _server.start();
 	
 	        int port = _server.getConnectors()[0].getLocalPort();
-	        _baseUrl = _protocol+"://localhost:"+port+ "/";
+	        _baseUrl = _protocol+"://localhost:"+port;
 
 
 			System.out.println("Started");
@@ -142,10 +143,30 @@ public class GraphEditorWebSocketTest {
 			Assert.fail(ex.getMessage());
 		}
 		
+
+	}
+
+	/* ------------------------------------------------------------ */
+    @After
+    public void tearDown()
+        throws Exception
+    {
+        if (_server != null)
+        {
+            _server.stop();
+            _server = null;
+        }
+    }
+
+	
+	@Test
+	public void testClient() throws IOException  {
 		wAsyncClient = ClientFactory.getDefault().newClient(AtmosphereClient.class);
-        requestBuilder = wAsyncClient.newRequestBuilder()
+        String url = _baseUrl+ "/ged/tenant1000/service";
+        //url = url.replaceAll("http", "ws");
+		requestBuilder = wAsyncClient.newRequestBuilder()
                 .method(Request.METHOD.GET)
-                .uri(_baseUrl+ "/ged/tenant1000")
+                .uri(url)
                 .trackMessageLength(true)
                 .encoder(new Encoder<GERequest, String>() {
                     @Override
@@ -246,26 +267,8 @@ public class GraphEditorWebSocketTest {
                         }
                     }
                 })
-                .transport(Request.TRANSPORT.WEBSOCKET)
-                .transport(Request.TRANSPORT.SSE)
-                .transport(Request.TRANSPORT.LONG_POLLING);
-	}
-
-	/* ------------------------------------------------------------ */
-    @After
-    public void tearDown()
-        throws Exception
-    {
-        if (_server != null)
-        {
-            _server.stop();
-            _server = null;
-        }
-    }
-
-	
-	@Test
-	public void testClient() throws IOException  {
+                .transport(Request.TRANSPORT.WEBSOCKET);
+		
 		Socket socket = wAsyncClient.create();
         socket.on("message", new Function<GEResponse>() {
             @Override
@@ -409,9 +412,12 @@ public class GraphEditorWebSocketTest {
 	        startClient(_realm);
 	        
 	        ContentExchange getExchange = new ContentExchange();
-	        getExchange.setURL(_baseUrl+AddTransServlet.CONTEXT_PATH + "?xml=Y");
-	        getExchange.setRequestHeader("Content-Type", "application/xml");
+	        String url = _baseUrl+AddTransServlet.CONTEXT_PATH + "?xml=Y";
+			getExchange.setURL(url);
+	        //getExchange.setRequestHeader("Content-Type", "application/xml");
 	        getExchange.setMethod(HttpMethods.GET);
+	        getExchange.setRequestHeader("Host", "tester");
+	        getExchange.setVersion("HTTP/1.0");
 
 			TransExecutionConfiguration transExecConfig = new TransExecutionConfiguration();
 			Trans trans = GraphEditorWebSocketTest.generateTestTransformation();
@@ -422,9 +428,10 @@ public class GraphEditorWebSocketTest {
 	        getExchange.setRequestContent(cb);
 	        
 	        _client.send(getExchange);
-	        int responseStatus = getExchange.waitForDone();
+	        int state = getExchange.waitForDone();
 	        
 	        String content = "";
+	        int responseStatus = getExchange.getResponseStatus();
 	        if (responseStatus == HttpStatus.OK_200)
 	        {
 	            content = getExchange.getResponseContent();
@@ -456,16 +463,18 @@ public class GraphEditorWebSocketTest {
 	public SlaveServerStatus getStatus() {
         ContentExchange getExchange = new ContentExchange();
         getExchange.setURL(_baseUrl+GetStatusServlet.CONTEXT_PATH + "?xml=Y");
-        getExchange.setRequestHeader("Content-Type", "application/xml");
         getExchange.setRequestHeader("Host", "tester");
         getExchange.setMethod(HttpMethods.GET);
         getExchange.setVersion("HTTP/1.0");
         
 		try {
+	        startClient(_realm);
+	        
 	        _client.send(getExchange);
-	        int responseStatus = getExchange.waitForDone();
+	        int state = getExchange.waitForDone();
 	        
 	        String content = "";
+	        int responseStatus = getExchange.getResponseStatus();
 	        if (responseStatus == HttpStatus.OK_200)
 	        {
 	            content = getExchange.getResponseContent();
@@ -546,12 +555,13 @@ public class GraphEditorWebSocketTest {
 	    servletHolder = new ServletHolder(atmosphereServlet);
 	    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
 	    //holder.setInitParameter("org.atmosphere.cpr.packages", "org.pentaho.di.www.ge.websocket");
-	    servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
+	    //servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
 	    servletHolder.setAsyncSupported(true);
 	    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
 	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    context.addServlet(servletHolder, "/websockets/*");
-	    handlers.addHandler(context);
+	    context.setContextPath("/ged/*");
+	    rootHandler.addServlet(servletHolder, "/ged/*");
+	    //handlers.addHandler(context);
         
         
         server.setHandler( handlers ); 

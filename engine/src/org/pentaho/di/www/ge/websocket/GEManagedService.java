@@ -20,14 +20,14 @@ import javax.inject.Inject;
 /**
  * GrapEditorDelegate WebSocket - Spoon-lite in Carte
  */
-@ManagedService(path = GEManagedService.PATH+"usertoken: [a-zA-Z][a-zA-Z_0-9]*}")
+@ManagedService(path = GEManagedService.PATH+"{tenant: [a-zA-Z][a-zA-Z_0-9]*}/"+"service/")
 public final class GEManagedService extends BaseWebSocket {
 	private static Class<?> PKG = GEManagedService.class; //
 	
 	public final static String PATH = "/ged/";
 
-	@PathParam("usertoken")
-	private String usertoken;
+	@PathParam("tenant")
+	private String tenant;
 	
     @Inject
     private BroadcasterFactory factory;
@@ -51,7 +51,7 @@ public final class GEManagedService extends BaseWebSocket {
 	 */
 	@Ready
 	public final void onReady(final AtmosphereResource r) {
-		logBasic("GraphEditor %s for user %s connected.", r.uuid(), usertoken);
+		logBasic(String.format("GraphEditor %s for tenant %s connected.", r.uuid(), tenant));
 		this.uuid = r.uuid();
 		ge = new GraphEditor(this);
 	}
@@ -66,11 +66,11 @@ public final class GEManagedService extends BaseWebSocket {
 	@Disconnect
 	public final void onDisconnect(final AtmosphereResourceEvent event) {
 		if (event.isCancelled())
-			logBasic("Browser {} unexpectedly disconnected", event
-					.getResource().uuid());
+			logBasic(String.format("Browser {} unexpectedly closed the connection", event.getResource()
+					.uuid()));
 		else if (event.isClosedByClient())
-			logBasic("Browser {} closed the connection", event.getResource()
-					.uuid());
+			logBasic(String.format("Browser {} closed the connection", event.getResource()
+					.uuid()));
 	}
 
 /**
