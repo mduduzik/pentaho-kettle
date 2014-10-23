@@ -11,6 +11,7 @@ import org.pentaho.di.core.Const;
 import org.pentaho.di.core.RowMetaAndData;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.LogChannel;
+import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.logging.LogLevel;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.RepositoryPluginType;
@@ -32,13 +33,13 @@ import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegates;
 import org.pentaho.di.www.ge.trans.TransGraph;
 import org.pentaho.di.www.ge.websocket.GEManagedService;
-import org.pentaho.di.www.ge.websocket.GERequest;
-import org.pentaho.di.www.ge.websocket.GEResponse;
+import org.pentaho.di.www.ge.websocket.message.GERequest;
+import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.pentaho.reporting.engine.classic.core.modules.parser.ext.factory.base.LongObjectDescription;
 
 public class GraphEditor {
 
-	private LogChannel log;
+	protected LogChannelInterface log = new LogChannel( "GraphEditor" );
 
 	private TransExecutionConfiguration transExecutionConfiguration;
 
@@ -181,11 +182,11 @@ public class GraphEditor {
 		return request.getRepositoryPassword();
 	}
 
-	public LogChannel getLog() {
+	public LogChannelInterface getLog() {
 		return log;
 	}
 
-	public void setLog(LogChannel log) {
+	public void setLog(LogChannelInterface log) {
 		this.log = log;
 	}
 

@@ -1,9 +1,10 @@
-package org.pentaho.di.www.ge.websocket;
+package org.pentaho.di.www.ge.websocket.message;
 
+import java.beans.Transient;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class GERequest{
+public class GEBaseMessage{
 	public static final String PARAM_META_OBJECT_ID = "PARAM_META_OBJECT_ID";
 	public static final String PARAM_CARTE_OBJECT_ID = "PARAM_CARTE_OBJECT_ID";
 	public static final String PARAM_META_NAME = "PARAM_META_NAME";
@@ -11,26 +12,23 @@ public final class GERequest{
 	public static final String PARAM_REPOSITORY_USERNAME = "PARAM_REPOSITORY_USERNAME";
 	public static final String PARAM_REPOSITORY_PWD = "PARAM_REPOSITORY_PWD";
 	
-	private GERequestType type;
-    private Map<String,String> params;
+	protected GEMessageType msgType;
+    protected Map<String,String> params;
 
-    public GERequest(){
+    public GEBaseMessage(){
     	params = new HashMap<String,String>();
     }
 
-	public GERequest(GERequestType type, Map<String, String> params) {
-		super();
-		this.type = type;
-		this.params = params;
+    
+	public GEMessageType getMsgType() {
+		return msgType;
 	}
 
-	public GERequestType getType() {
-		return type;
+
+	public void setMsgType(GEMessageType msgType) {
+		this.msgType = msgType;
 	}
 
-	public void setType(GERequestType type) {
-		this.type = type;
-	}
 
 	public Map<String, String> getParams() {
 		return params;
@@ -40,18 +38,22 @@ public final class GERequest{
 		this.params = params;
 	}
 	
+	@Transient
 	public String getStringParam(String paramName) {
 		return params.get(paramName);
 	}
     
+	@Transient
 	public String getRepositoryId() {
 		return getStringParam(PARAM_REPOSITORY_ID);
 	}
 	
+	@Transient
 	public String getRepositoryUsername() {
 		return getStringParam(PARAM_REPOSITORY_USERNAME);
 	}
 	
+	@Transient
 	public String getRepositoryPassword() {
 		return getStringParam(PARAM_REPOSITORY_PWD);
 	}

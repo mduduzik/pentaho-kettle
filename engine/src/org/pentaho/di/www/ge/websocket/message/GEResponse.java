@@ -1,6 +1,6 @@
-package org.pentaho.di.www.ge.websocket;
+package org.pentaho.di.www.ge.websocket.message;
 
-public final class GEResponse{
+public final class GEResponse extends GEBaseMessage {
 	private String carteObjectId;
 	private GERequest request;
 	private String errorMessage;
@@ -8,13 +8,25 @@ public final class GEResponse{
 	
 	
     public GEResponse(String carteObjectId) {
-		super();
+    	this();
 		this.carteObjectId = carteObjectId;
+	}
+    
+    public GEResponse(String carteObjectId, String errorMessage) {
+		this();
+		this.carteObjectId = carteObjectId;
+		this.errorMessage = errorMessage;
 	}
 
 	public GEResponse(GERequest request){
+		this();
     	this.request = request;
     }
+
+	public GEResponse() {
+		super();
+    	this.msgType = GEMessageType.RESPONSE;
+	}
 
 	public String getCarteObjectId() {
 		return carteObjectId;

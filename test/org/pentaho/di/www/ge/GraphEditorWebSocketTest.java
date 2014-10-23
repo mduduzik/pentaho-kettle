@@ -29,7 +29,11 @@ import java.io.OutputStream;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.html.dom.HTMLDocumentImpl;
@@ -44,6 +48,7 @@ import org.atmosphere.wasync.RequestBuilder;
 import org.atmosphere.wasync.Socket;
 import org.atmosphere.wasync.impl.AtmosphereClient;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ObjectNode;
 import org.cyberneko.html.parsers.DOMFragmentParser;
 import org.junit.After;
 import org.junit.Assert;
@@ -88,8 +93,13 @@ import org.pentaho.di.www.StartTransServlet;
 import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.WebResult;
 import org.pentaho.di.www.ge.trans.TransGridUpdate;
-import org.pentaho.di.www.ge.websocket.GERequest;
-import org.pentaho.di.www.ge.websocket.GEResponse;
+import org.pentaho.di.www.ge.websocket.GERequestEncoderDecoder;
+import org.pentaho.di.www.ge.websocket.GEResponseEncoderDecoder;
+import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
+import org.pentaho.di.www.ge.websocket.message.GEMessageType;
+import org.pentaho.di.www.ge.websocket.message.GERequest;
+import org.pentaho.di.www.ge.websocket.message.GERequestType;
+import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
 import org.w3c.dom.html.HTMLDocument;
@@ -138,6 +148,123 @@ public class GraphEditorWebSocketTest {
 			carteObjectId = addTransServlet();
 			System.out.println(String.format("Installed trans %s",
 					carteObjectId));
+			
+			wAsyncClient = ClientFactory.getDefault().newClient(AtmosphereClient.class);
+	        String url = _baseUrl+ "/ged/tenant1000/service";
+	        //url = url.replaceAll("http", "ws");
+			requestBuilder = wAsyncClient.newRequestBuilder()
+	                .method(Request.METHOD.GET)
+	                .uri(url)
+	                .trackMessageLength(true)
+	                .encoder(new Encoder<Object, String>() {
+	                    @Override
+	                    public String encode(Object data) {
+	                        try {
+	                            return mapper.writeValueAsString(data);
+	                        } catch (IOException e) {
+	                            throw new RuntimeException(e);
+	                        }
+	                    }
+	                })
+	                .decoder(new Decoder<String, Object>() {
+	                    @Override
+	                    public Object decode(Event type, String data) {
+
+	                        data = data.trim();
+
+	                        // Padding
+	                        if (data.length() == 0) {
+	                            return null;
+	                        }
+
+	                        if (type.equals(Event.MESSAGE)) {
+	                            try {
+	                            	ObjectNode obj = (ObjectNode)mapper.readTree(data);
+	                            	Object msgObj = null;
+	                            	GEMessageType mt = GEMessageType.valueOf(obj.get("msgType").getTextValue());
+	                            	if (mt == GEMessageType.REQUEST)
+	                            		msgObj = GERequestEncoderDecoder.INSTANCE.decode(data);
+	                            	else if (mt == GEMessageType.RESPONSE)
+	                            		msgObj = GEResponseEncoderDecoder.INSTANCE.decode(data);
+	                            	else 
+	                            		obj = null;
+	                            	return obj;
+	                            } catch (Exception e) {
+	                                logger.debug("Invalid message {}", data);
+	                                return null;
+	                            }
+	                        } else {
+	                            return null;
+	                        }
+	                    }
+	                })
+	                .encoder(new Encoder<GEResponse, String>() {
+	                    @Override
+	                    public String encode(GEResponse data) {
+	                        try {
+	                            return mapper.writeValueAsString(data);
+	                        } catch (IOException e) {
+	                            throw new RuntimeException(e);
+	                        }
+	                    }
+	                })
+	                .decoder(new Decoder<String, GEResponse>() {
+	                    @Override
+	                    public GEResponse decode(Event type, String data) {
+
+	                        data = data.trim();
+
+	                        // Padding
+	                        if (data.length() == 0) {
+	                            return null;
+	                        }
+
+	                        if (type.equals(Event.MESSAGE)) {
+	                            try {
+	                                return mapper.readValue(data, GEResponse.class);
+	                            } catch (IOException e) {
+	                                logger.debug("Invalid message {}", data);
+	                                return null;
+	                            }
+	                        } else {
+	                            return null;
+	                        }
+	                    }
+	                })
+	                .encoder(new Encoder<TransGridUpdate, String>() {
+	                    @Override
+	                    public String encode(TransGridUpdate data) {
+	                        try {
+	                            return mapper.writeValueAsString(data);
+	                        } catch (IOException e) {
+	                            throw new RuntimeException(e);
+	                        }
+	                    }
+	                })
+	                .decoder(new Decoder<String, TransGridUpdate>() {
+	                    @Override
+	                    public TransGridUpdate decode(Event type, String data) {
+
+	                        data = data.trim();
+
+	                        // Padding
+	                        if (data.length() == 0) {
+	                            return null;
+	                        }
+
+	                        if (type.equals(Event.MESSAGE)) {
+	                            try {
+	                                return mapper.readValue(data, TransGridUpdate.class);
+	                            } catch (IOException e) {
+	                                logger.debug("Invalid message {}", data);
+	                                return null;
+	                            }
+	                        } else {
+	                            return null;
+	                        }
+	                    }
+	                })
+	                .transport(Request.TRANSPORT.WEBSOCKET);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			Assert.fail(ex.getMessage());
@@ -161,152 +288,49 @@ public class GraphEditorWebSocketTest {
 	
 	@Test
 	public void testClient() throws IOException  {
-		wAsyncClient = ClientFactory.getDefault().newClient(AtmosphereClient.class);
-        String url = _baseUrl+ "/ged/tenant1000/service";
-        //url = url.replaceAll("http", "ws");
-		requestBuilder = wAsyncClient.newRequestBuilder()
-                .method(Request.METHOD.GET)
-                .uri(url)
-                .trackMessageLength(true)
-                .encoder(new Encoder<GERequest, String>() {
-                    @Override
-                    public String encode(GERequest data) {
-                        try {
-                            return mapper.writeValueAsString(data);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                })
-                .decoder(new Decoder<String, GERequest>() {
-                    @Override
-                    public GERequest decode(Event type, String data) {
+		try {
+			Socket socket = wAsyncClient.create();
+			final CountDownLatch latch = new CountDownLatch(1);
+			socket.on("message", new Function<GEResponse>() {
+			    @Override
+			    public void on(GEResponse t) {
+			        logger.info("Message: "+t.toString());
+			    }
+			}).on(new Function<Throwable>() {
 
-                        data = data.trim();
+			    @Override
+			    public void on(Throwable t) {
+			        t.printStackTrace();
+			    }
 
-                        // Padding
-                        if (data.length() == 0) {
-                            return null;
-                        }
+			}).on(Event.CLOSE.name(), new Function<String>() {
+			    @Override
+			    public void on(String t) {
+			        logger.info("Connection closed");
+			    }
+			}).on(Event.OPEN.name(), new Function<String>() {
+			            @Override
+			            public void on(String t) {
+			                logger.info("Connection opened");
+			            }
+			        })
+			        .open(requestBuilder.build());
 
-                        if (type.equals(Event.MESSAGE)) {
-                            try {
-                                return mapper.readValue(data, GERequest.class);
-                            } catch (IOException e) {
-                                logger.debug("Invalid message {}", data);
-                                return null;
-                            }
-                        } else {
-                            return null;
-                        }
-                    }
-                })
-                .encoder(new Encoder<GEResponse, String>() {
-                    @Override
-                    public String encode(GEResponse data) {
-                        try {
-                            return mapper.writeValueAsString(data);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                })
-                .decoder(new Decoder<String, GEResponse>() {
-                    @Override
-                    public GEResponse decode(Event type, String data) {
+			//Run a trans
+			Map<String,String> params = new HashMap<String,String>();
+			params.put(GEBaseMessage.PARAM_CARTE_OBJECT_ID, carteObjectId);
+			params.put(GEBaseMessage.PARAM_REPOSITORY_ID, "");
+			params.put(GEBaseMessage.PARAM_REPOSITORY_USERNAME, "");
+			params.put(GEBaseMessage.PARAM_REPOSITORY_PWD, "");
+			GERequest request = new GERequest(GERequestType.EXEC_TRANS,params);
+			socket.fire(request);
 
-                        data = data.trim();
-
-                        // Padding
-                        if (data.length() == 0) {
-                            return null;
-                        }
-
-                        if (type.equals(Event.MESSAGE)) {
-                            try {
-                                return mapper.readValue(data, GEResponse.class);
-                            } catch (IOException e) {
-                                logger.debug("Invalid message {}", data);
-                                return null;
-                            }
-                        } else {
-                            return null;
-                        }
-                    }
-                })
-                .encoder(new Encoder<TransGridUpdate, String>() {
-                    @Override
-                    public String encode(TransGridUpdate data) {
-                        try {
-                            return mapper.writeValueAsString(data);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                })
-                .decoder(new Decoder<String, TransGridUpdate>() {
-                    @Override
-                    public TransGridUpdate decode(Event type, String data) {
-
-                        data = data.trim();
-
-                        // Padding
-                        if (data.length() == 0) {
-                            return null;
-                        }
-
-                        if (type.equals(Event.MESSAGE)) {
-                            try {
-                                return mapper.readValue(data, TransGridUpdate.class);
-                            } catch (IOException e) {
-                                logger.debug("Invalid message {}", data);
-                                return null;
-                            }
-                        } else {
-                            return null;
-                        }
-                    }
-                })
-                .transport(Request.TRANSPORT.WEBSOCKET);
-		
-		Socket socket = wAsyncClient.create();
-        socket.on("message", new Function<GEResponse>() {
-            @Override
-            public void on(GEResponse t) {
-                logger.info("Message: "+t.toString());
-            }
-        }).on(new Function<Throwable>() {
-
-            @Override
-            public void on(Throwable t) {
-                t.printStackTrace();
-            }
-
-        }).on(Event.CLOSE.name(), new Function<String>() {
-            @Override
-            public void on(String t) {
-                logger.info("Connection closed");
-            }
-        }).on(Event.OPEN.name(), new Function<String>() {
-                    @Override
-                    public void on(String t) {
-                        logger.info("Connection opened");
-                    }
-                })
-                .open(requestBuilder.build());
-
-/*        logger.info("Choose Name: ");
-        String name = null;
-        String a = "";
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        while (!(a.equals("quit"))) {
-            a = br.readLine();
-            if (name == null) {
-                name = a;
-            }
-            socket.fire(new Message(name, a));
-        }*/
-        socket.close();
+			latch.await(15, TimeUnit.SECONDS);
+			socket.close();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public static Node parse(String content) throws SAXException, IOException {

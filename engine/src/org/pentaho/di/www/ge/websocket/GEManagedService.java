@@ -12,6 +12,8 @@ import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.MetaBroadcaster;
 import org.pentaho.di.www.BaseWebSocket;
 import org.pentaho.di.www.ge.GraphEditor;
+import org.pentaho.di.www.ge.websocket.message.GERequest;
+import org.pentaho.di.www.ge.websocket.message.GEResponse;
 
 import java.io.IOException;
 
