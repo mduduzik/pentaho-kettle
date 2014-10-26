@@ -4,7 +4,7 @@ public class GEResponse extends GEBaseMessage {
 	private String carteObjectId;
 	private GERequest request;
 	private String errorMessage;
-
+	protected GEResponseType  responseType;
 	
 	
     public GEResponse(String carteObjectId) {
@@ -51,4 +51,14 @@ public class GEResponse extends GEBaseMessage {
 	public void setErrorMessage(String errorMessage) {
 		this.errorMessage = errorMessage;
 	}
+
+	public GEResponseType getResponseType() {
+		return responseType;
+	}
+
+	public void setResponseType(GEResponseType responseType) {
+		this.responseType = responseType;
+	}
+	
+	
 }

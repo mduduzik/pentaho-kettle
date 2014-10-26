@@ -23,8 +23,11 @@
 package org.pentaho.di.www.ge.trans;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
@@ -46,6 +49,7 @@ import org.pentaho.di.trans.step.BaseStepData.StepExecutionStatus;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegate;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdateEncoderDecoder;
 
 public class TransGridDelegate extends GraphEditorDelegate {
 	private static Class<?> PKG = GraphEditor.class; // for i18n purposes,
@@ -69,6 +73,7 @@ public class TransGridDelegate extends GraphEditorDelegate {
 	private boolean showSelectedSteps;
 
 	private ScheduledFuture<?> gridRefreshTimerFuture;
+	private Map<String,Object[]> currentStepMap;
 
 	/**
 	 * @param spoon
@@ -160,6 +165,7 @@ public class TransGridDelegate extends GraphEditorDelegate {
 
 		refresh_busy = true;
 
+		boolean broadCastUpdate = false;
 		long time = new Date().getTime();
 		long msSinceLastUpdate = time - lastUpdateView;
 		if (transGraph.trans != null && !transGraph.trans.isPreparing()
@@ -189,16 +195,36 @@ public class TransGridDelegate extends GraphEditorDelegate {
 				// screen!
 				Object[] row = new Object[fields.length];
 				for (int f = 1; f < fields.length; f++) {
-					row[f-1] = fields[f];
+					if (f == 4)
+						continue;
+					else if (f > 4)
+						row[f-1] = fields[f-1];
+					else
+						row[f-1] = fields[f];
 				}
+				
 				list.add(new RowMetaAndData(rm, row));
+				if (currentStepMap == null) {//First update
+					currentStepMap = new HashMap<String, Object[]>();
+					currentStepMap.put(baseStep.getStepname(),row);
+					broadCastUpdate = true;
+				}
+				else {
+					Object[] row_ = currentStepMap.get(baseStep.getStepname());
+					if (row_ != null) {
+						if (!Arrays.equals(row, row_)) {
+							broadCastUpdate = true;
+							currentStepMap.put(baseStep.getStepname(),row);
+						}
+					}
+				}
 				nr++;
 			}
 		}
 		
 		//Push update
-		if (!list.isEmpty())
-			ge.broadcast(this.getClass().getSimpleName(), new GETransGridUpdate(list));
+		if (broadCastUpdate && !list.isEmpty())
+			ge.broadcast(this.getClass().getSimpleName(), GETransGridUpdateEncoderDecoder.INSTANCE.encode(new GETransGridUpdate(list)));
 
 		refresh_busy = false;
 	}

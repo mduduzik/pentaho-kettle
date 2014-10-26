@@ -96,11 +96,10 @@ public final class GEManagedService extends BaseWebSocket {
 		return ge.handleRequest(request);
 	}
 
-	public void broadcast(String subTopic, GEBaseUpdateMessage message) {
-		String json = GEUpdateEncoderDecoder.INSTANCE.encode((message));
+	public void broadcast(String subTopic, String json) {
 		AtmosphereResource r = resourceFactory.find(this.uuid);
 		logBasic(String.format("Broadcasting %s",json));
-		r.getResponse().write(json);
+		//r.getResponse().write(json);
 		//Broadcaster broadcast = factory.lookup(GEManagedService.PATH+tenant+"/"+"service/update",true);
 		//broadcast.addAtmosphereResource(r);
 		//broadcast.broadcast(message);

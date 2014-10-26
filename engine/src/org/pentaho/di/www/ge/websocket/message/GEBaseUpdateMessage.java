@@ -7,7 +7,7 @@ public class GEBaseUpdateMessage extends GEResponse {
 
     public GEBaseUpdateMessage(){
     	super();
-    	this.msgType = GEMessageType.UPDATE;
+    	this.responseType = GEResponseType.REQUEST_UPDATE;
     }
     
     public GEBaseUpdateMessage(GEMessageUpdateType msgUpdateType){

@@ -33,6 +33,7 @@ import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegates;
 import org.pentaho.di.www.ge.trans.TransGraph;
 import org.pentaho.di.www.ge.websocket.GEManagedService;
+import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
 import org.pentaho.di.www.ge.websocket.message.GEBaseUpdateMessage;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
@@ -294,7 +295,7 @@ public class GraphEditor {
 		return CarteSingleton.getInstance().getTransformationMap();
 	}
 	
-	public void broadcast(String subTopic, GEBaseUpdateMessage message) {
-		service.broadcast(subTopic, message);
+	public void broadcast(String subTopic, String jsonMessage) {
+		service.broadcast(subTopic, jsonMessage);
 	}
 }

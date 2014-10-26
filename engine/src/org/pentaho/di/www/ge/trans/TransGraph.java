@@ -61,6 +61,9 @@ import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.errorhandling.StreamInterface.StreamType;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.job.JobGraph;
+import org.pentaho.di.www.ge.websocket.message.GEFinishedResponse;
+import org.pentaho.di.www.ge.websocket.message.GEFinishedResponseEncoderDecoder;
+import org.pentaho.di.www.ge.websocket.message.GEUpdateEncoderDecoder;
 
 import sun.print.resources.serviceui;
 
@@ -506,6 +509,9 @@ public class TransGraph {
 					transMetricsDelegate.resetLastRefreshTime();
 					transMetricsDelegate.updateGraph();
 					transGridDelegate.stopGridDataCollection();
+					
+					String json = GEFinishedResponseEncoderDecoder.INSTANCE.encode((new GEFinishedResponse(trans.getErrors())));
+					ge.broadcast(null, json);
 				}
 			});
 
@@ -717,8 +723,5 @@ public class TransGraph {
 
 	public Trans getTrans() {
 		return trans;
-	}
-
-	public void broadcast(String subTopic, Object message) {
 	}
 }
