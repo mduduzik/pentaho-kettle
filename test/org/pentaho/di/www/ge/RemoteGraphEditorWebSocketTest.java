@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.html.dom.HTMLDocumentImpl;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.wasync.ClientFactory;
 import org.atmosphere.wasync.Decoder;
 import org.atmosphere.wasync.Encoder;
@@ -62,15 +61,7 @@ import org.eclipse.jetty.http.HttpMethods;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.AbstractBuffer;
 import org.eclipse.jetty.io.ByteArrayBuffer;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.nio.SelectChannelConnector;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.IO;
-import org.pentaho.di.core.logging.LogChannel;
-import org.pentaho.di.core.row.ValueMeta;
 import org.pentaho.di.core.row.ValueMetaInterface;
 import org.pentaho.di.core.row.value.ValueMetaBase;
 import org.pentaho.di.core.xml.XMLHandler;
@@ -82,17 +73,13 @@ import org.pentaho.di.trans.TransPreviewFactory;
 import org.pentaho.di.trans.steps.rowgenerator.RowGeneratorMeta;
 import org.pentaho.di.www.AddTransServlet;
 import org.pentaho.di.www.CarteSingleton;
-import org.pentaho.di.www.GetRootServlet;
 import org.pentaho.di.www.GetStatusServlet;
-import org.pentaho.di.www.JobMap;
-import org.pentaho.di.www.PauseTransServlet;
+import org.pentaho.di.www.RemoveTransServlet;
 import org.pentaho.di.www.SlaveServerStatus;
 import org.pentaho.di.www.SlaveServerTransStatus;
-import org.pentaho.di.www.SocketRepository;
-import org.pentaho.di.www.StartTransServlet;
-import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.WebResult;
 import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
+import org.pentaho.di.www.ge.websocket.message.GEBaseUpdateMessage;
 import org.pentaho.di.www.ge.websocket.message.GEMessageType;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
 import org.pentaho.di.www.ge.websocket.message.GERequestEncoderDecoder;
@@ -100,7 +87,6 @@ import org.pentaho.di.www.ge.websocket.message.GERequestType;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.pentaho.di.www.ge.websocket.message.GEResponseEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.GEUpdateEncoderDecoder;
-import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
 import org.w3c.dom.html.HTMLDocument;
@@ -109,8 +95,8 @@ import org.xml.sax.SAXException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GraphEditorWebSocketTest {
-    private final static Logger logger = LoggerFactory.getLogger(GraphEditorWebSocketTest.class);
+public class RemoteGraphEditorWebSocketTest {
+    private final static Logger logger = LoggerFactory.getLogger(RemoteGraphEditorWebSocketTest.class);
     private final static ObjectMapper mapper = new ObjectMapper();
 
 	private CarteSingleton carte = CarteSingleton.getInstance();
@@ -119,40 +105,25 @@ public class GraphEditorWebSocketTest {
 
 	private AtmosphereClient wAsyncClient;
 
-    private Server _server;
     private HttpClient _client;
     private Realm _realm;
-    private String _protocol;
     private String _baseUrl;
-    private String _requestContent;
 	private RequestBuilder requestBuilder;
+	private String transName;
 
 	@Before
 	public void before() {
-
-		carte.setJobMap(new JobMap());
-		carte.setTransformationMap(new TransformationMap());
-		carte.setSocketRepository(new SocketRepository(new LogChannel("Carte")));
-		
+		transName = "CarteUnitTest";
+		_baseUrl = "http://localhost:8660";
 		
 		try {
-	        _server = new Server();
-	        configureServer(_server);
-	        _server.start();
-	
-	        int port = _server.getConnectors()[0].getLocalPort();
-	        _baseUrl = _protocol+"://localhost:"+port;
-
-
-			System.out.println("Started");
+			removeTestTransInCarteServer();
 			
-			carteObjectId = addTransServlet();
-			System.out.println(String.format("Installed trans %s",
-					carteObjectId));
+			carteObjectId = uploadTestTransToCarteServer();//
+			System.out.println(String.format("Installed trans %s",carteObjectId));
 			
 			wAsyncClient = ClientFactory.getDefault().newClient(AtmosphereClient.class);
 	        String url = _baseUrl+ "/ged/tenant1000/service";
-	        //url = url.replaceAll("http", "ws");
 			requestBuilder = wAsyncClient.newRequestBuilder()
 	                .method(Request.METHOD.GET)
 	                .uri(url)
@@ -189,7 +160,7 @@ public class GraphEditorWebSocketTest {
 	                            	else if (mt == GEMessageType.RESPONSE)
 	                            		msgObj = GEResponseEncoderDecoder.INSTANCE.decode(data);
 	                            	else //Update
-	                            		msgObj = GEUpdateEncoderDecoder.INSTANCE.decode(data);
+	                            		msgObj = data;
 	                            	return obj;
 	                            } catch (Exception e) {
 	                            	e.printStackTrace();
@@ -215,11 +186,6 @@ public class GraphEditorWebSocketTest {
     public void tearDown()
         throws Exception
     {
-        if (_server != null)
-        {
-            _server.stop();
-            _server = null;
-        }
     }
 
 	
@@ -237,6 +203,11 @@ public class GraphEditorWebSocketTest {
 			    @Override
 			    public void on(String t) {
 			        logger.info("String Message: "+t.toString());
+			    }
+			}).on("message", new Function<GEBaseUpdateMessage>() {
+			    @Override
+			    public void on(GEBaseUpdateMessage t) {
+			        logger.info("Update Message: "+t.toString());
 			    }
 			}).on(new Function<Throwable>() {
 
@@ -337,7 +308,7 @@ public class GraphEditorWebSocketTest {
 	}
 
 	// CHECKSTYLE:Indentation:OFF
-	public static Trans generateTestTransformation() {
+	public Trans generateTestTransformation() {
 		RowGeneratorMeta A = new RowGeneratorMeta();
 		A.allocate(3);
 		A.setRowLimit("1000000");
@@ -362,7 +333,8 @@ public class GraphEditorWebSocketTest {
 
 		TransMeta transMeta = TransPreviewFactory
 				.generatePreviewTransformation(null, A, "A");
-		transMeta.setName("CarteUnitTest");
+
+		transMeta.setName(transName);
 		transMeta.setSizeRowset(25);
 		transMeta.setFeedbackSize(5);
 		transMeta.setUsingThreadPriorityManagment(false);
@@ -370,7 +342,7 @@ public class GraphEditorWebSocketTest {
 		return new Trans(transMeta);
 	}
 
-	public String addTransServlet() {
+	public String uploadTestTransToCarteServer() {
 		String carteObjId = null;
 
 		
@@ -386,7 +358,7 @@ public class GraphEditorWebSocketTest {
 	        getExchange.setVersion("HTTP/1.0");
 
 			TransExecutionConfiguration transExecConfig = new TransExecutionConfiguration();
-			Trans trans = GraphEditorWebSocketTest.generateTestTransformation();
+			Trans trans = generateTestTransformation();
 			TransConfiguration transConfig = new TransConfiguration(
 					trans.getTransMeta(), transExecConfig);
 			
@@ -424,6 +396,51 @@ public class GraphEditorWebSocketTest {
 		}
 
 		return carteObjId;
+	}
+	
+
+	public void removeTestTransInCarteServer() {
+		String carteObjId = null;
+
+		
+		try {
+	        startClient(_realm);
+	        
+	        ContentExchange getExchange = new ContentExchange();
+	        String url = _baseUrl+RemoveTransServlet.CONTEXT_PATH + "?xml=Y&name="+transName;
+			getExchange.setURL(url);
+	        //getExchange.setRequestHeader("Content-Type", "application/xml");
+	        getExchange.setMethod(HttpMethods.GET);
+	        getExchange.setRequestHeader("Host", "tester");
+	        getExchange.setVersion("HTTP/1.0");
+
+			TransExecutionConfiguration transExecConfig = new TransExecutionConfiguration();
+			Trans trans = generateTestTransformation();
+			TransConfiguration transConfig = new TransConfiguration(
+					trans.getTransMeta(), transExecConfig);
+			
+	        final AbstractBuffer cb = new ByteArrayBuffer(transConfig.getXML().getBytes("UTF-8"));
+	        getExchange.setRequestContent(cb);
+	        
+	        _client.send(getExchange);
+	        int state = getExchange.waitForDone();
+	        
+	        String content = "";
+	        int responseStatus = getExchange.getResponseStatus();
+	        if (responseStatus == HttpStatus.OK_200)
+	        {
+	            content = getExchange.getResponseContent();
+	        }
+	    
+	        stopClient();
+	        
+
+			WebResult webResult = new WebResult( XMLHandler.loadXMLString( content, WebResult.XML_TAG ) );
+			//Assert.assertEquals(WebResult.STRING_OK, webResult.getResult());
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
 	}
 
 	public SlaveServerStatus getStatus() {
@@ -469,68 +486,6 @@ public class GraphEditorWebSocketTest {
         }
     }
     
-    /* ------------------------------------------------------------ */
-    protected void configureServer(Server server)
-        throws Exception
-    {
-        setProtocol("http");
-        
-        SelectChannelConnector connector = new SelectChannelConnector();
-        server.addConnector(connector);
-
-	    // Add all the servlets defined in kettle-servlets.xml ...
-	    //
-	    ContextHandlerCollection contexts = new ContextHandlerCollection();
-	    HandlerList handlers = new HandlerList();
-	    
-	    // Root
-	    //
-	    ServletContextHandler rootHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    rootHandler.setContextPath(GetRootServlet.CONTEXT_PATH);
-	    handlers.addHandler(rootHandler);
-	    GetRootServlet rootServlet = new GetRootServlet();
-	    rootServlet.setJettyMode( true );
-	    rootHandler.addServlet( new ServletHolder( rootServlet ), "/*" );
-
-		  ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(GetStatusServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  ServletHolder servletHolder = new ServletHolder( GetStatusServlet.class );
-		  rootHandler.addServlet( servletHolder, GetStatusServlet.CONTEXT_PATH+"/*" );
-		
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(AddTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( AddTransServlet.class );
-		  rootHandler.addServlet( servletHolder, AddTransServlet.CONTEXT_PATH);
-		
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(StartTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( StartTransServlet.class );
-		  rootHandler.addServlet( servletHolder, StartTransServlet.CONTEXT_PATH+"/*" );
-		  
-		  servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);//new Context( contexts, servlet.getServletPath(), Context.SESSIONS );
-		  servletHandler.setContextPath(PauseTransServlet.CONTEXT_PATH);
-		  handlers.addHandler(servletHandler);
-		  servletHolder = new ServletHolder( PauseTransServlet.class );
-		  rootHandler.addServlet( servletHolder, PauseTransServlet.CONTEXT_PATH+"/*" );
-	      
-	    // Atmosphere 
-		AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
-	    servletHolder = new ServletHolder(atmosphereServlet);
-	    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
-	    servletHolder.setAsyncSupported(true);
-	    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
-	    //ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    //context.setContextPath("/ged/*");
-	    rootHandler.addServlet(servletHolder, "/ged/*");
-	    //handlers.addHandler(context);
-        
-        
-        server.setHandler( handlers ); 
-
-    }
     
     /* ------------------------------------------------------------ */
     protected void startClient(Realm realm)
@@ -581,12 +536,6 @@ public class GraphEditorWebSocketTest {
         return _realm;
     }
     
-    
-    /* ------------------------------------------------------------ */
-    protected void setProtocol(String protocol)
-    {
-        _protocol = protocol;
-    }
     
     /* ------------------------------------------------------------ */
     protected void setRealm(Realm realm)

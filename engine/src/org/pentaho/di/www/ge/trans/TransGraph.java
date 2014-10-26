@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.pentaho.di.core.CheckResultInterface;
@@ -227,6 +230,7 @@ public class TransGraph {
 	public TransGraph(GraphEditor ge, final Trans trans) {
 		this.ge = ge;
 		this.trans = trans;
+		this.transMeta = trans.getTransMeta();
 		init();
 	}
 
@@ -360,6 +364,25 @@ public class TransGraph {
 		// progress of the initialization
 		//
 		final Thread parentThread = Thread.currentThread();
+		Executors.newSingleThreadExecutor().execute(new Runnable() {
+			@Override
+			public void run() {
+				startAllDelegates();
+				prepareTrans(parentThread, null);
+			}
+		});/*
+	    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+	    scheduler.
+	    scheduler.scheduleAtFixedRate(new Runnable() {
+					@Override
+					public void run() {
+						busy.set(true);
+						refreshView();
+						busy.set(false);
+					}
+				}, 0, REFRESH_TIME, TimeUnit.MILLISECONDS);
+	    
+
 
 		new Thread(new Runnable() {
 			@Override
@@ -368,7 +391,7 @@ public class TransGraph {
 				prepareTrans(parentThread, null);
 			}
 		}).start();
-
+*/
 		log.logMinimal(BaseMessages.getString(PKG,
 				"TransLog.Log.StartedExecutionOfTransformation"));
 	}
@@ -482,6 +505,7 @@ public class TransGraph {
 
 					transMetricsDelegate.resetLastRefreshTime();
 					transMetricsDelegate.updateGraph();
+					transGridDelegate.stopGridDataCollection();
 				}
 			});
 

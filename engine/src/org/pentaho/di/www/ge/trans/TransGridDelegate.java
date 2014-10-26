@@ -27,6 +27,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -41,6 +45,7 @@ import org.pentaho.di.trans.step.StepStatus;
 import org.pentaho.di.trans.step.BaseStepData.StepExecutionStatus;
 import org.pentaho.di.www.ge.GraphEditor;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegate;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
 
 public class TransGridDelegate extends GraphEditorDelegate {
 	private static Class<?> PKG = GraphEditor.class; // for i18n purposes,
@@ -49,9 +54,9 @@ public class TransGridDelegate extends GraphEditorDelegate {
 
 	private static final String XUL_FILE_TRANS_GRID_TOOLBAR = "ui/trans-grid-toolbar.xul";
 
-	public static final long REFRESH_TIME = 100L;
+	public static final long REFRESH_TIME = 50L;
 
-	public static final long UPDATE_TIME_VIEW = 1000L;
+	public static final long UPDATE_TIME_VIEW = 50L;
 
 	private TransGraph transGraph;
 
@@ -62,6 +67,8 @@ public class TransGridDelegate extends GraphEditorDelegate {
 	private boolean hideInactiveSteps;
 
 	private boolean showSelectedSteps;
+
+	private ScheduledFuture<?> gridRefreshTimerFuture;
 
 	/**
 	 * @param spoon
@@ -96,27 +103,33 @@ public class TransGridDelegate extends GraphEditorDelegate {
 	public void scheduleGridDataCollection() {
 		// Add a timer to update this view every couple of seconds...
 		//
-		final Timer tim = new Timer("TransGraph: " + transGraph.getTransMeta().getName());
 		final AtomicBoolean busy = new AtomicBoolean(false);
-
-		TimerTask timtask = new TimerTask() {
-			@Override
-			public void run() {
-				new Thread( new Runnable() {
+	    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
+	    gridRefreshTimerFuture = scheduler.scheduleAtFixedRate(new Runnable() {
 					@Override
 					public void run() {
+						log.logBasic(String.format("Running GridDelegate refreshView()"));
 						busy.set(true);
 						refreshView();
 						busy.set(false);
 					}
-				}).start();
+				}, 0, REFRESH_TIME, TimeUnit.MILLISECONDS);
+/*	    
+	    
+		final Timer tim = new Timer("TransGraph: StepGrid: " + transGraph.getTransMeta().getName());
+
+		timtask = new TimerTask() {
+			@Override
+			public void run() {
+				log.logBasic(String.format("Running GridDelegate refreshView()"));
+				new Thread( ).start();
 			}
 		};
 
 		tim.schedule(timtask, 0L, REFRESH_TIME); // schedule to repeat a couple
 													// of times per second to
 													// get fast feedback
-	}
+*/	}
 
 	private void refreshView() {
 		List<RowMetaAndData> list = new ArrayList<RowMetaAndData>();
@@ -145,17 +158,12 @@ public class TransGridDelegate extends GraphEditorDelegate {
 			return;
 		}
 
-		List<StepMeta> selectedSteps = new ArrayList<StepMeta>();
-		if (showSelectedSteps) {
-			selectedSteps = transGraph.trans.getTransMeta().getSelectedSteps();
-		}
-
 		refresh_busy = true;
 
 		long time = new Date().getTime();
 		long msSinceLastUpdate = time - lastUpdateView;
 		if (transGraph.trans != null && !transGraph.trans.isPreparing()
-				&& msSinceLastUpdate > UPDATE_TIME_VIEW) {
+				/*&& msSinceLastUpdate > UPDATE_TIME_VIEW*/) {
 			lastUpdateView = time;
 
 			nrSteps = transGraph.trans.nrSteps();
@@ -181,7 +189,7 @@ public class TransGridDelegate extends GraphEditorDelegate {
 				// screen!
 				Object[] row = new Object[fields.length];
 				for (int f = 1; f < fields.length; f++) {
-					row[f] = fields[f];
+					row[f-1] = fields[f];
 				}
 				list.add(new RowMetaAndData(rm, row));
 				nr++;
@@ -189,7 +197,8 @@ public class TransGridDelegate extends GraphEditorDelegate {
 		}
 		
 		//Push update
-		ge.broadcast(this.getClass().getSimpleName(), new TransGridUpdate(list));
+		if (!list.isEmpty())
+			ge.broadcast(this.getClass().getSimpleName(), new GETransGridUpdate(list));
 
 		refresh_busy = false;
 	}
@@ -230,5 +239,10 @@ public class TransGridDelegate extends GraphEditorDelegate {
 	 */
 	public void setName(String name) {
 		// TODO Auto-generated method stub
+	}
+
+	public void stopGridDataCollection() {
+		gridRefreshTimerFuture.cancel(false);
+		refreshView();
 	}
 }

@@ -8,12 +8,17 @@ import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.MetaBroadcaster;
 import org.pentaho.di.www.BaseWebSocket;
 import org.pentaho.di.www.ge.GraphEditor;
+import org.pentaho.di.www.ge.websocket.message.GEBaseUpdateMessage;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
+import org.pentaho.di.www.ge.websocket.message.GERequestEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
+import org.pentaho.di.www.ge.websocket.message.GEResponseEncoderDecoder;
+import org.pentaho.di.www.ge.websocket.message.GEUpdateEncoderDecoder;
 
 import java.io.IOException;
 
@@ -22,7 +27,7 @@ import javax.inject.Inject;
 /**
  * GrapEditorDelegate WebSocket - Spoon-lite in Carte
  */
-@ManagedService(path = GEManagedService.PATH+"{tenant: [a-zA-Z][a-zA-Z_0-9]*}/"+"service/")
+@ManagedService(path = GEManagedService.PATH+"{tenant: [a-zA-Z][a-zA-Z_0-9]*}/"+"service")
 public final class GEManagedService extends BaseWebSocket {
 	private static Class<?> PKG = GEManagedService.class; //
 	
@@ -31,13 +36,10 @@ public final class GEManagedService extends BaseWebSocket {
 	@PathParam("tenant")
 	private String tenant;
 	
-    @Inject
     private BroadcasterFactory factory;
 
-    @Inject
     private AtmosphereResourceFactory resourceFactory;
 
-    @Inject
     private MetaBroadcaster metaBroadcaster;
 
 	private GraphEditor ge;
@@ -53,6 +55,9 @@ public final class GEManagedService extends BaseWebSocket {
 	 */
 	@Ready
 	public final void onReady(final AtmosphereResource r) {
+		resourceFactory = r.getAtmosphereConfig().framework().atmosphereFactory();
+		factory = r.getAtmosphereConfig().getBroadcasterFactory();
+		
 		logBasic(String.format("GraphEditor %s for tenant %s connected.", r.uuid(), tenant));
 		this.uuid = r.uuid();
 		ge = new GraphEditor(this);
@@ -91,8 +96,14 @@ public final class GEManagedService extends BaseWebSocket {
 		return ge.handleRequest(request);
 	}
 
-	public void broadcast(String subTopic, Object message) {
+	public void broadcast(String subTopic, GEBaseUpdateMessage message) {
+		String json = GEUpdateEncoderDecoder.INSTANCE.encode((message));
 		AtmosphereResource r = resourceFactory.find(this.uuid);
-		factory.lookup(PATH+subTopic).broadcast(message, r);
+		logBasic(String.format("Broadcasting %s",json));
+		r.getResponse().write(json);
+		//Broadcaster broadcast = factory.lookup(GEManagedService.PATH+tenant+"/"+"service/update",true);
+		//broadcast.addAtmosphereResource(r);
+		//broadcast.broadcast(message);
+		//r.getBroadcaster().broadcast(json, r);
 	}
 }

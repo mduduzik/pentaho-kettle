@@ -38,6 +38,7 @@ import org.eclipse.jetty.server.bio.SocketConnector;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.plus.jaas.JAASLoginService;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -203,23 +204,23 @@ public class WebServer {
     }
 
     // setup jersey (REST)
-    ServletHolder jerseyServletHolder = new ServletHolder( ServletContainer.class );
+/*    ServletHolder jerseyServletHolder = new ServletHolder( ServletContainer.class );
     jerseyServletHolder.setInitParameter(
       "com.sun.jersey.config.property.resourceConfigClass", "com.sun.jersey.api.core.PackagesResourceConfig" );
     jerseyServletHolder.setInitParameter( "com.sun.jersey.config.property.packages", "org.pentaho.di.www.jaxrs" );
-    rootHandler.addServlet( jerseyServletHolder, "/api/*" );
+    rootHandler.addServlet( jerseyServletHolder, "/api/*" );*/
 
     
     // Atmosphere 
 	AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
-    ServletHolder servletHolder = new ServletHolder(atmosphereServlet);
-    servletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
-    servletHolder.setInitParameter("org.atmosphere.websocket.messageContentType", "application/json");
-    servletHolder.setAsyncSupported(true);
-    servletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
+    ServletHolder atmosphereServletHolder = new ServletHolder(atmosphereServlet);
+    atmosphereServletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
+    atmosphereServletHolder.setAsyncSupported(true);
+    atmosphereServletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
     ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context.addServlet(servletHolder, "/websockets/*");
-    handlers.addHandler(context);
+    context.setContextPath("/ged/*");
+    rootHandler.addServlet(atmosphereServletHolder, "/ged/*");
+    //handlers.addHandler(context);
 
     // Allow png files to be shown for transformations and jobs...
     //
@@ -275,13 +276,20 @@ public class WebServer {
   }
 
   private void createListeners() {
-    SocketConnector connector = new SocketConnector();
+    SelectChannelConnector httpConnector = new SelectChannelConnector();
+    httpConnector.setPort( port );
+    httpConnector.setHost( hostname );
+    server.setConnectors(new Connector[] { httpConnector });
+    httpConnector.setName( BaseMessages.getString( PKG, "WebServer.Log.KettleHTTPListener", hostname ) );
+    log.logBasic( BaseMessages.getString( PKG, "WebServer.Log.CreateListener", hostname, "" + port ) );
+    server.setConnectors( new Connector[] { httpConnector } );
+	    
+/*    SocketConnector connector = new SocketConnector();
     connector.setPort( port );
     connector.setHost( hostname );
     connector.setName( BaseMessages.getString( PKG, "WebServer.Log.KettleHTTPListener", hostname ) );
     log.logBasic( BaseMessages.getString( PKG, "WebServer.Log.CreateListener", hostname, "" + port ) );
-
-    server.setConnectors( new Connector[] { connector } );
+    server.setConnectors( new Connector[] { connector } );*/
   }
 
   /**

@@ -1,6 +1,6 @@
 package org.pentaho.di.www.ge.websocket.message;
 
-public final class GEResponse extends GEBaseMessage {
+public class GEResponse extends GEBaseMessage {
 	private String carteObjectId;
 	private GERequest request;
 	private String errorMessage;
