@@ -60,7 +60,7 @@ public final class GETransGridUpdateEncoderDecoder implements Encoder<GETransGri
     public String encode(final GETransGridUpdate params){
         try{
             String serialized = mapper.writeValueAsString(params);
-        	//logger.debug(String.format("Serialized message < %s >", serialized));
+        	logger.debug(String.format("Serialized GETransGridUpdate message < %s >", serialized));
 			return serialized;
         }catch(IOException e){
             throw new RuntimeException(e);

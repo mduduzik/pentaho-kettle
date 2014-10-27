@@ -43,7 +43,7 @@ public class TransLogDelegate extends GraphEditorDelegate {
 	}
 
 	public void scheduleLogDataCollection() {
-		logBrowser = new LogBrowser(this.transGraph,ge);
+		logBrowser = new LogBrowser(this.transGraph,ge,log);
 		logBrowser.installLogSniffer();
 	}
 

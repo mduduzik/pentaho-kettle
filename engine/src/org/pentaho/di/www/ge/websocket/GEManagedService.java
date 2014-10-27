@@ -98,8 +98,9 @@ public final class GEManagedService extends BaseWebSocket {
 
 	public void broadcast(String subTopic, String json) {
 		AtmosphereResource r = resourceFactory.find(this.uuid);
-		logBasic(String.format("Broadcasting %s",json));
-		//r.getResponse().write(json);
+		//logBasic(String.format("Broadcasting %s",json));
+		if (r != null)//Connection still there
+			r.getResponse().write(json);
 		//Broadcaster broadcast = factory.lookup(GEManagedService.PATH+tenant+"/"+"service/update",true);
 		//broadcast.addAtmosphereResource(r);
 		//broadcast.broadcast(message);

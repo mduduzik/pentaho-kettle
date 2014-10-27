@@ -27,6 +27,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -37,6 +41,7 @@ import org.pentaho.di.core.logging.KettleLogStore;
 import org.pentaho.di.core.logging.KettleLoggingEvent;
 import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.logging.LogLevel;
+import org.pentaho.di.core.logging.LogMessage;
 import org.pentaho.di.core.logging.LogParentProvidedInterface;
 import org.pentaho.di.core.logging.LoggingRegistry;
 import org.pentaho.di.www.ge.GraphEditor;
@@ -56,11 +61,13 @@ public class LogBrowser {
 	private TimerTask timerTask;
 
 	private GraphEditor ge;
+	private ScheduledFuture<?> logRefreshTimerFuture;
+	private LogChannelInterface log;
 
-	public LogBrowser(final LogParentProvidedInterface logProvider,
-			GraphEditor ge) {
+	public LogBrowser(final LogParentProvidedInterface logProvider, GraphEditor ge, LogChannelInterface log) {
 		this.logProvider = logProvider;
 		this.ge = ge;
+		this.log = log;
 		this.paused = new AtomicBoolean(false);
 	}
 
@@ -81,92 +88,82 @@ public class LogBrowser {
 
 		// Refresh the log every second or so
 		//
-		final Timer logRefreshTimer = new Timer("log sniffer Timer");
-		timerTask = new TimerTask() {
-			public void run() {
-				new Thread(new Runnable() {
+		ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+	    logRefreshTimerFuture = scheduler.scheduleAtFixedRate(new Runnable() {
+					@Override
 					public void run() {
-						HasLogChannelInterface provider = logProvider.getLogChannelProvider();
+						busy.set(true);
+						log.logDebug(String.format("Running LogDelegate refreshLog()"));
+						new Thread(new Runnable() {
+							public void run() {
+								HasLogChannelInterface provider = logProvider.getLogChannelProvider();
 
-						if (provider != null && !busy.get() && !paused.get()) {
-							busy.set(true);
+								if (provider != null && !busy.get() && !paused.get()) {
+									busy.set(true);
 
-							LogChannelInterface logChannel = provider
-									.getLogChannel();
-							String parentLogChannelId = logChannel
-									.getLogChannelId();
-							LoggingRegistry registry = LoggingRegistry
-									.getInstance();
-							Date registryModDate = registry
-									.getLastModificationTime();
+									LogChannelInterface logChannel = provider.getLogChannel();
+									String parentLogChannelId = logChannel.getLogChannelId();
+									LoggingRegistry registry = LoggingRegistry.getInstance();
+									Date registryModDate = registry.getLastModificationTime();
 
-							if (childIds == null
-									|| lastLogRegistryChange == null
-									|| registryModDate
-											.compareTo(lastLogRegistryChange) > 0) {
-								lastLogRegistryChange = registry
-										.getLastModificationTime();
-								childIds = LoggingRegistry.getInstance()
-										.getLogChannelChildren(
-												parentLogChannelId);
-							}
+									if (childIds == null || lastLogRegistryChange == null
+											|| registryModDate.compareTo(lastLogRegistryChange) > 0) {
+										lastLogRegistryChange = registry.getLastModificationTime();
+										childIds = LoggingRegistry.getInstance().getLogChannelChildren(parentLogChannelId);
+									}
 
-							// See if we need to log any lines...
-							//
-							int lastNr = KettleLogStore.getLastBufferLineNr();
-							if (lastNr > lastLogId.get()) {
-								List<KettleLoggingEvent> logLines = KettleLogStore
-										.getLogBufferFromTo(childIds, true,
+									// See if we need to log any lines...
+									//
+									int lastNr = KettleLogStore.getLastBufferLineNr();
+									if (lastNr > lastLogId.get()) {
+										List<KettleLoggingEvent> logLines = KettleLogStore.getLogBufferFromTo(childIds, true,
 												lastLogId.get(), lastNr);
 
-								// int position = text.getSelection().x;
-								// StringBuffer buffer = new
-								// StringBuffer(text.getText());
-								StringBuffer stringBuffer = new StringBuffer(
-										10000);
-								int index = lastLogId.get();
-								String[] logLineArray;
-								List<String[]> logLinesList = new ArrayList<String[]>();
-								for (int i = 0; i < logLines.size(); i++) {
-									logLineArray = new String[4];
-									KettleLoggingEvent event = logLines.get(i);
-									String line = logLayout.format(event)
-											.trim();
+										// int position = text.getSelection().x;
+										// StringBuffer buffer = new
+										// StringBuffer(text.getText());
+										StringBuffer stringBuffer = new StringBuffer(10000);
+										int index = lastLogId.get();
+										String[] logLineArray;
+										List<String[]> logLinesList = new ArrayList<String[]>();
+										for (int i = 0; i < logLines.size(); i++) {
+											logLineArray = new String[4];
+											KettleLoggingEvent event = logLines.get(i);
+											String line = logLayout.format(event).trim();
 
-									boolean hasError = (event.getLevel() == LogLevel.ERROR);
+											boolean hasError = (event.getLevel() == LogLevel.ERROR);
 
-									logLineArray[0] = "" + (index++);
-									logLineArray[1] = hasError ? "true"
-											: "false";
-									logLineArray[2] = StringEscapeUtils.escapeHtml(new Date(
-											event.getTimeStamp()).toString());
-									logLineArray[3] = StringEscapeUtils
-											.escapeHtml(event.getMessage()
-													.toString());
+											logLineArray[0] = "" + (index++);
+											logLineArray[1] = hasError ? "true" : "false";
+											Date date = new Date(event.getTimeStamp());
+											logLineArray[2] = StringEscapeUtils.escapeHtml(date.toString());
+											String message = null;
+											try {
+												message = event.getMessage().toString();
+											} catch (IllegalArgumentException e) {
+												LogMessage logMsg = (LogMessage)event.getMessage();
+												message = logMsg.getSubject() + "-" + logMsg.getMessage();
+											}
+											logLineArray[3] = StringEscapeUtils.escapeHtml(message);
 
-									logLinesList.add(logLineArray);
+											logLinesList.add(logLineArray);
 
-									lastLogId.set(lastNr);
+											lastLogId.set(lastNr);
+										}
+										ge.broadcast(null, GETransLogUpdateEncoderDecoder.INSTANCE.encode(new GETransLogUpdate(
+												logLinesList)));
+									}
+									busy.set(false);
 								}
-								ge.broadcast(null,
-										GETransLogUpdateEncoderDecoder.INSTANCE
-												.encode(new GETransLogUpdate(
-														logLinesList)));
 							}
-							busy.set(false);
-						}
+						}).start();
+						busy.set(false);
 					}
-				}).start();
-			}
-		};
-
-		// Refresh every often enough
-		//
-		logRefreshTimer.schedule(timerTask, 1000, 1000);
+				}, 1000, 500, TimeUnit.MILLISECONDS);
 	}
 
 	public void cancelLogSniffer() {
-		timerTask.cancel();
+		logRefreshTimerFuture.cancel(true);
 	}
 
 	public LogParentProvidedInterface getLogProvider() {

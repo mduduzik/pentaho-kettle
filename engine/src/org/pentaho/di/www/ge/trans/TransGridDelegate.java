@@ -109,32 +109,17 @@ public class TransGridDelegate extends GraphEditorDelegate {
 		// Add a timer to update this view every couple of seconds...
 		//
 		final AtomicBoolean busy = new AtomicBoolean(false);
-	    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
+	    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 	    gridRefreshTimerFuture = scheduler.scheduleAtFixedRate(new Runnable() {
 					@Override
 					public void run() {
-						log.logBasic(String.format("Running GridDelegate refreshView()"));
+						log.logDebug(String.format("Running GridDelegate refreshView()"));
 						busy.set(true);
 						refreshView();
 						busy.set(false);
 					}
 				}, 0, REFRESH_TIME, TimeUnit.MILLISECONDS);
-/*	    
-	    
-		final Timer tim = new Timer("TransGraph: StepGrid: " + transGraph.getTransMeta().getName());
-
-		timtask = new TimerTask() {
-			@Override
-			public void run() {
-				log.logBasic(String.format("Running GridDelegate refreshView()"));
-				new Thread( ).start();
-			}
-		};
-
-		tim.schedule(timtask, 0L, REFRESH_TIME); // schedule to repeat a couple
-													// of times per second to
-													// get fast feedback
-*/	}
+	}
 
 	private void refreshView() {
 		List<RowMetaAndData> list = new ArrayList<RowMetaAndData>();

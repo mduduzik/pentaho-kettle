@@ -181,6 +181,8 @@ public class GraphEditorWebSocketTest {
 	                        if (type.equals(Event.MESSAGE)) {
 	                            try {
 	                            	logger.debug(String.format("Browser received message %s", data));
+	                            	int index = data.indexOf("|");
+									data = data.substring(index >= 0?(index+1):0);
 	                            	ObjectNode obj = (ObjectNode)mapper.readTree(data);
 	                            	Object msgObj = null;
 	                            	GEMessageType mt = GEMessageType.valueOf(obj.get("msgType").getTextValue());
