@@ -13,6 +13,9 @@ import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.LogChannel;
 import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.logging.LogLevel;
+import org.pentaho.di.core.logging.LoggingObjectInterface;
+import org.pentaho.di.core.logging.LoggingObjectType;
+import org.pentaho.di.core.logging.SimpleLoggingObject;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.RepositoryPluginType;
 import org.pentaho.di.core.row.RowMeta;
@@ -42,6 +45,8 @@ import org.pentaho.reporting.engine.classic.core.modules.parser.ext.factory.base
 public class GraphEditor {
 
 	protected LogChannelInterface log = new LogChannel( "GraphEditor" );
+	
+	protected LoggingObjectInterface loggingObject = new SimpleLoggingObject( "GraphEditor", LoggingObjectType.CARTE, null );
 
 	private TransExecutionConfiguration transExecutionConfiguration;
 
@@ -192,6 +197,14 @@ public class GraphEditor {
 		this.log = log;
 	}
 
+	public LoggingObjectInterface getLoggingObject() {
+		return loggingObject;
+	}
+
+	public void setLoggingObject(LoggingObjectInterface loggingObject) {
+		this.loggingObject = loggingObject;
+	}
+
 	public TransExecutionConfiguration getTransExecutionConfiguration() {
 		return transExecutionConfiguration;
 	}
@@ -279,7 +292,7 @@ public class GraphEditor {
 			Trans trans = getTransformationMap().getTransformation(entry);
 			TransConfiguration transConfiguration = getTransformationMap().getConfiguration(entry);
 			TransExecutionConfiguration executionConfiguration = transConfiguration.getTransExecutionConfiguration();
-			this.activeTransGraph = new TransGraph(this, trans);
+			this.activeTransGraph = new TransGraph(this, trans, carteObjectId);
 			this.activeTransGraph.start(executionConfiguration);
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();

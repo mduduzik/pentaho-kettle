@@ -25,172 +25,159 @@ package org.pentaho.di.www.ge.trans;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.commons.lang.StringEscapeUtils;
+import org.pentaho.di.core.logging.HasLogChannelInterface;
+import org.pentaho.di.core.logging.KettleLogLayout;
+import org.pentaho.di.core.logging.KettleLogStore;
+import org.pentaho.di.core.logging.KettleLoggingEvent;
+import org.pentaho.di.core.logging.LogChannelInterface;
+import org.pentaho.di.core.logging.LogLevel;
 import org.pentaho.di.core.logging.LogParentProvidedInterface;
+import org.pentaho.di.core.logging.LoggingRegistry;
 import org.pentaho.di.www.ge.GraphEditor;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransLogUpdate;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransLogUpdateEncoderDecoder;
 
 public class LogBrowser {
-  private static Class<?> PKG = GraphEditor.class; // for i18n purposes, needed by Translator2!!
+	private static Class<?> PKG = GraphEditor.class; // for i18n purposes,
+														// needed by
+														// Translator2!!
 
-  private LogParentProvidedInterface logProvider;
-  private List<String> childIds = new ArrayList<String>();
-  private Date lastLogRegistryChange;
-  private AtomicBoolean paused;
+	private LogParentProvidedInterface logProvider;
+	private List<String> childIds = new ArrayList<String>();
+	private Date lastLogRegistryChange;
+	private AtomicBoolean paused;
 
-  public LogBrowser( final LogParentProvidedInterface logProvider ) {
-    this.logProvider = logProvider;
-    this.paused = new AtomicBoolean( false );
-  }
+	private TimerTask timerTask;
 
-  public void installLogSniffer() {
-/*
-    // Create a new buffer appender to the log and capture that directly...
-    //
-    final AtomicInteger lastLogId = new AtomicInteger( -1 );
-    final AtomicBoolean busy = new AtomicBoolean( false );
-    final KettleLogLayout logLayout = new KettleLogLayout( true );
+	private GraphEditor ge;
 
-    final StyleRange normalLogLineStyle = new StyleRange();
-    normalLogLineStyle.foreground = GUIResource.getInstance().getColorBlue();
-    final StyleRange errorLogLineStyle = new StyleRange();
-    errorLogLineStyle.foreground = GUIResource.getInstance().getColorRed();
+	public LogBrowser(final LogParentProvidedInterface logProvider,
+			GraphEditor ge) {
+		this.logProvider = logProvider;
+		this.ge = ge;
+		this.paused = new AtomicBoolean(false);
+	}
 
-    // Refresh the log every second or so
-    //
-    final Timer logRefreshTimer = new Timer( "log sniffer Timer" );
-    TimerTask timerTask = new TimerTask() {
-      public void run() {
-        if ( text.isDisposed() ) {
-          return;
-        }
+	public void installLogSniffer() {
+		// Create a new buffer appender to the log and capture that directly...
+		//
+		final AtomicInteger lastLogId = new AtomicInteger(-1);
+		final AtomicBoolean busy = new AtomicBoolean(false);
+		final KettleLogLayout logLayout = new KettleLogLayout(true);
 
-        text.getDisplay().asyncExec( new Runnable() {
-          public void run() {
-            HasLogChannelInterface provider = logProvider.getLogChannelProvider();
+		/*
+		 * final StyleRange normalLogLineStyle = new StyleRange();
+		 * normalLogLineStyle.foreground =
+		 * GUIResource.getInstance().getColorBlue(); final StyleRange
+		 * errorLogLineStyle = new StyleRange(); errorLogLineStyle.foreground =
+		 * GUIResource.getInstance().getColorRed();
+		 */
 
-            if ( provider != null && !text.isDisposed() && !busy.get() && !paused.get() && text.isVisible() ) {
-              busy.set( true );
+		// Refresh the log every second or so
+		//
+		final Timer logRefreshTimer = new Timer("log sniffer Timer");
+		timerTask = new TimerTask() {
+			public void run() {
+				new Thread(new Runnable() {
+					public void run() {
+						HasLogChannelInterface provider = logProvider.getLogChannelProvider();
 
-              LogChannelInterface logChannel = provider.getLogChannel();
-              String parentLogChannelId = logChannel.getLogChannelId();
-              LoggingRegistry registry = LoggingRegistry.getInstance();
-              Date registryModDate = registry.getLastModificationTime();
+						if (provider != null && !busy.get() && !paused.get()) {
+							busy.set(true);
 
-              if ( childIds == null
-                || lastLogRegistryChange == null || registryModDate.compareTo( lastLogRegistryChange ) > 0 ) {
-                lastLogRegistryChange = registry.getLastModificationTime();
-                childIds = LoggingRegistry.getInstance().getLogChannelChildren( parentLogChannelId );
-              }
+							LogChannelInterface logChannel = provider
+									.getLogChannel();
+							String parentLogChannelId = logChannel
+									.getLogChannelId();
+							LoggingRegistry registry = LoggingRegistry
+									.getInstance();
+							Date registryModDate = registry
+									.getLastModificationTime();
 
-              // See if we need to log any lines...
-              //
-              int lastNr = KettleLogStore.getLastBufferLineNr();
-              if ( lastNr > lastLogId.get() ) {
-                List<KettleLoggingEvent> logLines =
-                  KettleLogStore.getLogBufferFromTo( childIds, true, lastLogId.get(), lastNr );
+							if (childIds == null
+									|| lastLogRegistryChange == null
+									|| registryModDate
+											.compareTo(lastLogRegistryChange) > 0) {
+								lastLogRegistryChange = registry
+										.getLastModificationTime();
+								childIds = LoggingRegistry.getInstance()
+										.getLogChannelChildren(
+												parentLogChannelId);
+							}
 
-                // The maximum size of the log buffer
-                //
-                int maxSize = Props.getInstance().getMaxNrLinesInLog() * 150;
+							// See if we need to log any lines...
+							//
+							int lastNr = KettleLogStore.getLastBufferLineNr();
+							if (lastNr > lastLogId.get()) {
+								List<KettleLoggingEvent> logLines = KettleLogStore
+										.getLogBufferFromTo(childIds, true,
+												lastLogId.get(), lastNr);
 
-                // int position = text.getSelection().x;
-                // StringBuffer buffer = new StringBuffer(text.getText());
+								// int position = text.getSelection().x;
+								// StringBuffer buffer = new
+								// StringBuffer(text.getText());
+								StringBuffer stringBuffer = new StringBuffer(
+										10000);
+								int index = lastLogId.get();
+								String[] logLineArray;
+								List<String[]> logLinesList = new ArrayList<String[]>();
+								for (int i = 0; i < logLines.size(); i++) {
+									logLineArray = new String[4];
+									KettleLoggingEvent event = logLines.get(i);
+									String line = logLayout.format(event)
+											.trim();
 
-                synchronized ( text ) {
+									boolean hasError = (event.getLevel() == LogLevel.ERROR);
 
-                  for ( int i = 0; i < logLines.size(); i++ ) {
-                    KettleLoggingEvent event = logLines.get( i );
-                    String line = logLayout.format( event ).trim();
+									logLineArray[0] = "" + (index++);
+									logLineArray[1] = hasError ? "true"
+											: "false";
+									logLineArray[2] = StringEscapeUtils.escapeHtml(new Date(
+											event.getTimeStamp()).toString());
+									logLineArray[3] = StringEscapeUtils
+											.escapeHtml(event.getMessage()
+													.toString());
 
-                    int start = text.getText().length();
-                    int length = line.length();
+									logLinesList.add(logLineArray);
 
-                    if ( length > 0 ) {
-                      text.append( line );
-                      text.append( Const.CR );
+									lastLogId.set(lastNr);
+								}
+								ge.broadcast(null,
+										GETransLogUpdateEncoderDecoder.INSTANCE
+												.encode(new GETransLogUpdate(
+														logLinesList)));
+							}
+							busy.set(false);
+						}
+					}
+				}).start();
+			}
+		};
 
-                      if ( event.getLevel() == LogLevel.ERROR ) {
-                        StyleRange styleRange = new StyleRange();
-                        styleRange.foreground = GUIResource.getInstance().getColorRed();
-                        styleRange.start = start;
-                        styleRange.length = length;
-                        text.setStyleRange( styleRange );
-                      } else {
-                        StyleRange styleRange = new StyleRange();
-                        styleRange.foreground = GUIResource.getInstance().getColorBlue();
-                        styleRange.start = start;
-                        styleRange.length = Math.min( 20, length );
-                        text.setStyleRange( styleRange );
-                      }
-                    }
-                  }
-                }
+		// Refresh every often enough
+		//
+		logRefreshTimer.schedule(timerTask, 1000, 1000);
+	}
 
-                // Erase it all in one go
-                // This makes it a bit more efficient
-                //
-                int size = text.getText().length();
-                if ( maxSize > 0 && size > maxSize ) {
+	public void cancelLogSniffer() {
+		timerTask.cancel();
+	}
 
-                  int dropIndex = ( text.getText().indexOf( Const.CR, size - maxSize ) ) + Const.CR.length();
-                  text.replaceTextRange( 0, dropIndex, "" );
-                }
+	public LogParentProvidedInterface getLogProvider() {
+		return logProvider;
+	}
 
-                text.setSelection( text.getText().length() );
+	public boolean isPaused() {
+		return paused.get();
+	}
 
-                lastLogId.set( lastNr );
-              }
-
-              busy.set( false );
-            }
-          }
-        } );
-      }
-    };
-
-    // Refresh every often enough
-    //
-    logRefreshTimer.schedule( timerTask, 1000, 1000 );
-
-    // Make sure the timer goes down when the widget is disposed
-    //
-    text.addDisposeListener( new DisposeListener() {
-      public void widgetDisposed( DisposeEvent event ) {
-        logRefreshTimer.cancel();
-      }
-    } );
-
-    final Menu menu = new Menu( text );
-    MenuItem item = new MenuItem( menu, SWT.NONE );
-    item.setText( BaseMessages.getString( PKG, "LogBrowser.CopySelectionToClipboard.MenuItem" ) );
-    item.addSelectionListener( new SelectionAdapter() {
-      public void widgetSelected( SelectionEvent event ) {
-        String selection = text.getSelectionText();
-        if ( !Const.isEmpty( selection ) ) {
-          GUIResource.getInstance().toClipboard( selection );
-        }
-      }
-    } );
-    text.setMenu( menu );
-
-    text.addMouseListener( new MouseAdapter() {
-      public void mouseDown( MouseEvent event ) {
-        if ( event.button == 3 ) {
-          ConstUI.displayMenu( menu, text );
-        }
-      }
-    } );*/
-  }
-
-  public LogParentProvidedInterface getLogProvider() {
-    return logProvider;
-  }
-
-  public boolean isPaused() {
-    return paused.get();
-  }
-
-  public void setPaused( boolean paused ) {
-    this.paused.set( paused );
-  }
+	public void setPaused(boolean paused) {
+		this.paused.set(paused);
+	}
 }

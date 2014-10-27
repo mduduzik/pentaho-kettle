@@ -43,6 +43,7 @@ import org.pentaho.di.core.gui.Point;
 import org.pentaho.di.core.logging.HasLogChannelInterface;
 import org.pentaho.di.core.logging.KettleLogStore;
 import org.pentaho.di.core.logging.LogChannelInterface;
+import org.pentaho.di.core.logging.LogParentProvidedInterface;
 import org.pentaho.di.core.logging.LoggingObjectInterface;
 import org.pentaho.di.core.logging.LoggingRegistry;
 import org.pentaho.di.core.row.RowMetaInterface;
@@ -75,7 +76,7 @@ import sun.print.resources.serviceui;
  * @since 17-mei-2003
  *
  */
-public class TransGraph {
+public class TransGraph implements LogParentProvidedInterface {
 	private static Class<?> PKG = GraphEditor.class; // for i18n purposes,
 														// needed by
 														// Translator2!!
@@ -199,6 +200,7 @@ public class TransGraph {
 	Timer redrawTimer;
 
 	public Trans trans;
+	private String carteObjectId;
 
 	public void setCurrentNote(NotePadMeta ni) {
 		this.ni = ni;
@@ -230,10 +232,11 @@ public class TransGraph {
 		init();
 	}
 	
-	public TransGraph(GraphEditor ge, final Trans trans) {
+	public TransGraph(GraphEditor ge, final Trans trans, String carteObjectId) {
 		this.ge = ge;
 		this.trans = trans;
 		this.transMeta = trans.getTransMeta();
+		this.carteObjectId = carteObjectId;
 		init();
 	}
 
@@ -373,28 +376,8 @@ public class TransGraph {
 				startAllDelegates();
 				prepareTrans(parentThread, null);
 			}
-		});/*
-	    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-	    scheduler.
-	    scheduler.scheduleAtFixedRate(new Runnable() {
-					@Override
-					public void run() {
-						busy.set(true);
-						refreshView();
-						busy.set(false);
-					}
-				}, 0, REFRESH_TIME, TimeUnit.MILLISECONDS);
-	    
-
-
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				startAllDelegates();
-				prepareTrans(parentThread, null);
-			}
-		}).start();
-*/
+		});
+		
 		log.logMinimal(BaseMessages.getString(PKG,
 				"TransLog.Log.StartedExecutionOfTransformation"));
 	}
@@ -508,9 +491,11 @@ public class TransGraph {
 
 					transMetricsDelegate.resetLastRefreshTime();
 					transMetricsDelegate.updateGraph();
-					transGridDelegate.stopGridDataCollection();
 					
-					String json = GEFinishedResponseEncoderDecoder.INSTANCE.encode((new GEFinishedResponse(trans.getErrors())));
+					transGridDelegate.stopGridDataCollection();
+					transLogDelegate.stopLogDataCollection();
+					
+					String json = GEFinishedResponseEncoderDecoder.INSTANCE.encode((new GEFinishedResponse(trans.getErrors(),carteObjectId)));
 					ge.broadcast(null, json);
 				}
 			});

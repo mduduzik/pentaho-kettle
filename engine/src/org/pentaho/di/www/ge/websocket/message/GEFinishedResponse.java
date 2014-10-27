@@ -5,11 +5,17 @@ public class GEFinishedResponse extends GEResponse {
 
 	public GEFinishedResponse() {
 		super();
-    	this.responseType = GEResponseType.REQUEST_UPDATE;
+    	this.responseType = GEResponseType.FINISHED;
 	}
 
 	public GEFinishedResponse(int errorCount) {
 		this();
 		this.errorCount = errorCount;
 	}
+	
+	public GEFinishedResponse(int errorCount, String carteObjectId) {
+		this();
+		this.errorCount = errorCount;
+		this.carteObjectId = carteObjectId;
+	}	
 }
