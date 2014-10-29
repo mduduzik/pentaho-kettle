@@ -23,6 +23,8 @@
 package org.pentaho.di.www;
 
 import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
@@ -45,9 +47,11 @@ import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.SecurityHandler;
+import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Credential;
+import org.eclipse.jetty.webapp.WebAppContext;
 import org.pentaho.di.cluster.SlaveServer;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
@@ -202,14 +206,22 @@ public class WebServer {
       ServletHolder servletHolder = new ServletHolder( (Servlet) servlet );
       rootHandler.addServlet( servletHolder, servlet.getContextPath()+"/*" );
     }
-
+    
     // setup jersey (REST)
-/*    ServletHolder jerseyServletHolder = new ServletHolder( ServletContainer.class );
-    jerseyServletHolder.setInitParameter(
-      "com.sun.jersey.config.property.resourceConfigClass", "com.sun.jersey.api.core.PackagesResourceConfig" );
+    ServletHolder jerseyServletHolder = new ServletHolder( ServletContainer.class );
+    jerseyServletHolder.setInitParameter("com.sun.jersey.config.property.resourceConfigClass", "com.sun.jersey.api.core.PackagesResourceConfig" );
     jerseyServletHolder.setInitParameter( "com.sun.jersey.config.property.packages", "org.pentaho.di.www.jaxrs" );
-    rootHandler.addServlet( jerseyServletHolder, "/api/*" );*/
-
+    rootHandler.addServlet( jerseyServletHolder, "/api/*" );
+    
+    
+    // App resources
+    ClassLoader loader = this.getClass().getClassLoader();
+    File indexLoc = new File(loader.getResource("webapp/app").getFile());
+    String htmlLoc = indexLoc.getParentFile().getAbsolutePath();
+    DefaultServlet resourceServlet = new DefaultServlet();
+    ServletHolder resourceServletHolder = new ServletHolder(resourceServlet);
+    resourceServletHolder.setInitParameter("resourceBase", htmlLoc);
+    rootHandler.addServlet( resourceServletHolder, "/app/*" );
     
     // Atmosphere 
 	AtmosphereServlet atmosphereServlet = new AtmosphereServlet();
@@ -217,8 +229,6 @@ public class WebServer {
     atmosphereServletHolder.setInitParameter("com.sun.jersey.config.property.packages","org.pentaho.di.www.websocket");
     atmosphereServletHolder.setAsyncSupported(true);
     atmosphereServletHolder.setInitParameter("org.atmosphere.useWebSocket","true");
-    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    context.setContextPath("/ged/*");
     rootHandler.addServlet(atmosphereServletHolder, "/ged/*");
     //handlers.addHandler(context);
 

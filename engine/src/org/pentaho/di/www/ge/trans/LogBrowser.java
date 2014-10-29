@@ -45,6 +45,8 @@ import org.pentaho.di.core.logging.LogMessage;
 import org.pentaho.di.core.logging.LogParentProvidedInterface;
 import org.pentaho.di.core.logging.LoggingRegistry;
 import org.pentaho.di.www.ge.GraphEditor;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdateEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransLogUpdate;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransLogUpdateEncoderDecoder;
 
@@ -150,8 +152,8 @@ public class LogBrowser {
 
 											lastLogId.set(lastNr);
 										}
-										ge.broadcast(null, GETransLogUpdateEncoderDecoder.INSTANCE.encode(new GETransLogUpdate(
-												logLinesList)));
+										ge.sendJsonToClient(GETransLogUpdateEncoderDecoder.INSTANCE.encode(new GETransLogUpdate(logLinesList)));
+										//ge.broadcast(null, GETransLogUpdateEncoderDecoder.INSTANCE.encode(new GETransLogUpdate(logLinesList)));
 									}
 									busy.set(false);
 								}

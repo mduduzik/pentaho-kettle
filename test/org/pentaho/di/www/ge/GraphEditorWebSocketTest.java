@@ -101,6 +101,7 @@ import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.pentaho.di.www.ge.websocket.message.GEResponseEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.GEUpdateEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdateEncoderDecoder;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Node;
 import org.w3c.dom.html.HTMLDocument;
@@ -201,6 +202,13 @@ public class GraphEditorWebSocketTest {
 	                        } else {
 	                            return null;
 	                        }
+	                    }
+	                })
+	                .decoder(new Decoder<String, GETransGridUpdate>() {
+	                    @Override
+	                    public GETransGridUpdate decode(Event type, String data) {
+	                    	logger.debug(String.format("Browser GETransGridUpdate received message %s", data));
+	                    	return GETransGridUpdateEncoderDecoder.INSTANCE.decode(data);
 	                    }
 	                })
 	                .transport(Request.TRANSPORT.WEBSOCKET);

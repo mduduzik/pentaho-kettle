@@ -67,7 +67,7 @@ public class UnicodeFormatter {
 		return bytes;
 	}
 
-	public static String parseString(String hexString) {
+	public static String parseString(String hexString) throws Exception {
 		StringBuilder sb = new StringBuilder();
 
 		char[] array = hexString.toCharArray();

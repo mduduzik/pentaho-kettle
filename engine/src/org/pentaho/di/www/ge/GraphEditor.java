@@ -3,6 +3,7 @@ package org.pentaho.di.www.ge;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
+import java.util.List;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.fife.ui.rtextarea.RTextAreaEditorKit.SetReadOnlyAction;
@@ -19,6 +20,7 @@ import org.pentaho.di.core.logging.SimpleLoggingObject;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.RepositoryPluginType;
 import org.pentaho.di.core.row.RowMeta;
+import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.job.JobExecutionConfiguration;
 import org.pentaho.di.repository.LongObjectId;
 import org.pentaho.di.repository.ObjectId;
@@ -32,6 +34,8 @@ import org.pentaho.di.trans.TransExecutionConfiguration;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.www.CarteObjectEntry;
 import org.pentaho.di.www.CarteSingleton;
+import org.pentaho.di.www.SlaveServerStatus;
+import org.pentaho.di.www.SlaveServerTransStatus;
 import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.ge.delegates.GraphEditorDelegates;
 import org.pentaho.di.www.ge.trans.TransGraph;
@@ -40,7 +44,9 @@ import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
 import org.pentaho.di.www.ge.websocket.message.GEBaseUpdateMessage;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
+import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
 import org.pentaho.reporting.engine.classic.core.modules.parser.ext.factory.base.LongObjectDescription;
+import org.stringtemplate.v4.compiler.STParser.list_return;
 
 public class GraphEditor {
 
@@ -276,9 +282,18 @@ public class GraphEditor {
 		case EXEC_TRANS:
 			response = handleExecuteTransformationRequest();
 			break;
+		case LIST_TRANS:
+			response = handleListTransformations();
+			break;
 		}
 
 		return response;
+	}
+
+	private GEResponse handleListTransformations() {
+
+
+		return null;
 	}
 
 	private GEResponse handleExecuteTransformationRequest() {
@@ -310,5 +325,13 @@ public class GraphEditor {
 	
 	public void broadcast(String subTopic, String jsonMessage) {
 		service.broadcast(subTopic, jsonMessage);
+	}
+
+	public void broadcast(GETransGridUpdate message) {
+		service.broadcast(message);
+	}
+	
+	public void sendJsonToClient(String json) {
+		service.sendJsonToClient(json);
 	}
 }

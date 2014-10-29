@@ -60,6 +60,7 @@
     <dependency org="com.sun.jersey"                   name="jersey-bundle"        rev="1.16"            transitive="false"/>
     <dependency org="com.sun.jersey"                   name="jersey-client"        rev="1.16"            transitive="false"/>
     <dependency org="com.sun.jersey"                   name="jersey-core"          rev="1.16"            transitive="false"/>
+    <dependency org="org.glassfish.jersey.containers" name="jersey-container-servlet" rev="2.12" transitive="false"/>
     <dependency org="org.slf4j" name="slf4j-api" rev="1.7.7" transitive="false"/>
     <dependency org="org.slf4j" name="slf4j-simple" rev="1.7.7" transitive="false"/>
     <dependency org="org.atmosphere" name="atmosphere-runtime" rev="2.2.3" transitive="false"/>

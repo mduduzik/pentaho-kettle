@@ -24,48 +24,50 @@ package org.pentaho.di.www;
 
 import org.pentaho.di.core.logging.LogChannel;
 import org.pentaho.di.core.logging.LogChannelInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BaseWebSocket {
 
-  protected LogChannelInterface log = new LogChannel( "WebSocket" );
+  protected Logger log = LoggerFactory.getLogger(this.getClass());
 
   public void logMinimal( String s ) {
-    log.logMinimal( s );
+    log.info( s );
   }
 
   public void logBasic( String s ) {
-    log.logBasic( s );
+    log.info( s );
   }
 
   public void logError( String s ) {
-    log.logError( s );
+    log.error( s );
   }
 
   public void logError( String s, Throwable e ) {
-    log.logError( s, e );
+    log.error( s, e );
   }
 
   public void logBasic( String s, Object... arguments ) {
-    log.logBasic( s, arguments );
+    log.info( s, arguments );
   }
 
   public void logDetailed( String s, Object... arguments ) {
-    log.logDetailed( s, arguments );
+    log.trace( s, arguments );
   }
 
   public void logError( String s, Object... arguments ) {
-    log.logError( s, arguments );
+    log.error( s, arguments );
   }
 
   public void logDetailed( String s ) {
-    log.logDetailed( s );
+    log.trace( s );
   }
 
   public void logDebug( String s ) {
-    log.logDebug( s );
+    log.debug( s );
   }
 
   public void logRowlevel( String s ) {
-    log.logRowlevel( s );
+    log.trace( s );
   }
 }

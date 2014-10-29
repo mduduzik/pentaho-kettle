@@ -209,7 +209,8 @@ public class TransGridDelegate extends GraphEditorDelegate {
 		
 		//Push update
 		if (broadCastUpdate && !list.isEmpty())
-			ge.broadcast(this.getClass().getSimpleName(), GETransGridUpdateEncoderDecoder.INSTANCE.encode(new GETransGridUpdate(list)));
+			//ge.broadcast(new GETransGridUpdate(list));
+			ge.sendJsonToClient(GETransGridUpdateEncoderDecoder.INSTANCE.encode(new GETransGridUpdate(list)));
 
 		refresh_busy = false;
 	}

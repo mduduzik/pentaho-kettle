@@ -6,17 +6,12 @@ import org.atmosphere.config.managed.Encoder;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ObjectNode;
-import org.pentaho.di.www.ge.GraphEditorWebSocketTest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 public final class GERequestEncoderDecoder implements Encoder<GERequest, String>, Decoder<String, GERequest>{
-    private final static Logger logger = LoggerFactory.getLogger(GraphEditorWebSocketTest.class);
     private final static ObjectMapper mapper = new ObjectMapper();
 
     public final static GERequestEncoderDecoder INSTANCE = new GERequestEncoderDecoder(); 
@@ -24,8 +19,6 @@ public final class GERequestEncoderDecoder implements Encoder<GERequest, String>
     @Override
     public GERequest decode(final String s){
         try{
-        	logger.debug(String.format("Serialized message < %s >", s));
-        	
         	//Deal with params map
         	Map<String,String> params = new HashMap<String, String>();
         	ObjectNode obj = (ObjectNode)mapper.readTree(s);

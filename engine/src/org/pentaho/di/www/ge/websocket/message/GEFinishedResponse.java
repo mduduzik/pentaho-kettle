@@ -5,7 +5,7 @@ public class GEFinishedResponse extends GEResponse {
 
 	public GEFinishedResponse() {
 		super();
-    	this.responseType = GEResponseType.FINISHED;
+    	this.responseType = GEResponseType.RUN_FINISHED;
 	}
 
 	public GEFinishedResponse(int errorCount) {

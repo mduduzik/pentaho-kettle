@@ -496,7 +496,7 @@ public class TransGraph implements LogParentProvidedInterface {
 					transLogDelegate.stopLogDataCollection();
 					
 					String json = GEFinishedResponseEncoderDecoder.INSTANCE.encode((new GEFinishedResponse(trans.getErrors(),carteObjectId)));
-					ge.broadcast(null, json);
+					ge.sendJsonToClient(json);
 				}
 			});
 

@@ -5,6 +5,7 @@ public class GEResponse extends GEBaseMessage {
 	private GERequest request;
 	private String errorMessage;
 	protected GEResponseType  responseType;
+	private int errorCount;
 	
 	
     public GEResponse(String carteObjectId) {
@@ -59,6 +60,12 @@ public class GEResponse extends GEBaseMessage {
 	public void setResponseType(GEResponseType responseType) {
 		this.responseType = responseType;
 	}
-	
-	
+
+	public int getErrorCount() {
+		return errorCount;
+	}
+
+	public void setErrorCount(int errorCount) {
+		this.errorCount = errorCount;
+	}
 }
