@@ -1,58 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atmosphere Chat AngularJS</title>
-  <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"/>
-  <link rel="stylesheet" href="css/chat.css" />
-  <script src="javascript/libs/jquery/2.0.3/jquery.min.js"></script>
-  <script src="javascript/libs/bootstrap/3.0.0/js/bootstrap.min.js"></script>
-  <script src="javascript/libs/atmosphere/2.2.5/atmosphere.js"></script>
-  <script src="javascript/libs/angularjs/1.0.7/angular.min.js"></script>
-  <script src="javascript/libs/angular-atmosphere/service/angular-atmosphere-service.js"></script>
-  <script src="javascript/application.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmosphere Chat AngularJS</title>
+<link rel="stylesheet"
+	href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" />
+<link rel="stylesheet" href="css/chat.css" />
+<link rel="stylesheet" type="text/css"
+	href="javascript/libs/ng-grid/2.0.7/css/ng-grid.css" />
+<script src="javascript/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="javascript/libs/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+<script src="javascript/libs/atmosphere/2.2.5/atmosphere.js"></script>
+<script src="javascript/libs/angularjs/1.2.16/angular.js"></script>
+<script
+	src="javascript/libs//bootstrap-tpls/0.11.2/ui-bootstrap-tpls-0.11.2.js"></script>
+<script src="javascript/libs//ng-grid/2.0.7/js/ng-grid.js"></script>
+<script
+	src="javascript/libs/angular-atmosphere/service/angular-atmosphere-service.js"></script>
+<script src="javascript/application.js"></script>
 </head>
 <body data-ng-app="angular.atmosphere.chat" data-ng-controller="ChatController">
-<div id="header">
-  <h3 data-ng-bind="model.header" data-ng-init="model.header='Carte App. Default transport is WebSocket, fallback is long-polling'"></h3>
-</div>
-<p data-ng-show="!model.connected">Connecting...</p>
-<p>{{model.content}}</p>
-<div class="container">
-  <div class="row">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <h3 class="panel-title">Carte Console</h3>
-      </div>
-      <div class="panel-body">
-        <div class="messages">
-          <p data-ng-repeat="message in model.messages">
-            <span class="time">{{message.date | date:'shortDate'}} {{message.date|date:'shortTime'}}</span>
-            <span class="author">{{message.author}}</span> :
-            <span class="text">{{message.text}}</span>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-  <span data-ng-show="!selectedItem">Select Transformation:</span>
-  <form role="form" ng-submit="submit()" class="form-horizontal">
-    <div class="form-group">
-      <div class="col-lg-9">
-      	<select ng-model="selectedItem" 
-      	     ng-options="item as item.carteObjectEntry.name for item in transItems" 
-      	     data-ng-disabled="!transItems"></select>
-      </div> 
-      <br>
-      <div class="col-lg-9">
-      	Selected Transformation Id: {{ selectedItem.carteObjectEntry.id }}    
-      </div> 
-      <div class="col-lg-9">
-      	<input type="submit" id="submit" ng-show="wip == false && selectedItem" value="Run" />
-      </div>
-    </div>
-  </form>
-</div>
+	<p data-ng-show="!model.connected">Connecting...</p>
+	<div class="panel-heading">
+		<h3 class="panel-title">Carte Console</h3>
+	</div>
+	<br>
+	<p data-ng-show="model.connected">Connected with websocket.</p>
+	<br>
+	<div ng-show="wip == true">Running {{
+		selectedItem.carteObjectEntry.name }}...</div>
+	<br>
+	<tabset> 
+		<tab heading="Log History">
+			<div class="gridStyle" ng-grid="logGridOptions"></div>
+		</tab> 
+		<tab heading="Step Metrics">
+			<div class="gridStyle" ng-grid="metricsGridOptions"></div>
+		</tab>
+	</tab> </tabset>
+
+	<span data-ng-show="!selectedItem">Select Transformation:</span>
+	<div>
+		<form role="form" ng-submit="submit()" class="form-horizontal">
+			<div class="form-group">
+				<div class="col-lg-9">
+					<select ng-model="selectedItem"
+						ng-options="item as item.carteObjectEntry.name for item in transItems"
+						data-ng-disabled="!transItems"></select>
+				</div>
+				<br>
+				<div class="col-lg-9">Selected Transformation Id: {{
+					selectedItem.carteObjectEntry.id }}</div>
+				<div class="col-lg-9">
+					<input type="submit" id="submit"
+						ng-show="wip == false && selectedItem" value="Run" />
+				</div>
+			</div>
+		</form>
+	</div>
 </body>
 </html>

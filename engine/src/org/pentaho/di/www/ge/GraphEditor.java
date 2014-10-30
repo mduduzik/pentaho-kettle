@@ -42,6 +42,7 @@ import org.pentaho.di.www.ge.trans.TransGraph;
 import org.pentaho.di.www.ge.websocket.GEManagedService;
 import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
 import org.pentaho.di.www.ge.websocket.message.GEBaseUpdateMessage;
+import org.pentaho.di.www.ge.websocket.message.GEConfirmStartResponse;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
@@ -282,9 +283,6 @@ public class GraphEditor {
 		case EXEC_TRANS:
 			response = handleExecuteTransformationRequest();
 			break;
-		case LIST_TRANS:
-			response = handleListTransformations();
-			break;
 		}
 
 		return response;
@@ -301,7 +299,7 @@ public class GraphEditor {
 		String objectId = request.getStringParam(GERequest.PARAM_META_OBJECT_ID);
 		String carteObjectId = request.getStringParam(GERequest.PARAM_CARTE_OBJECT_ID);
 
-		GEResponse resp = new GEResponse(carteObjectId);
+		GEConfirmStartResponse resp = new GEConfirmStartResponse(carteObjectId);
 		try {
 			CarteObjectEntry entry = new CarteObjectEntry(name, carteObjectId);
 			Trans trans = getTransformationMap().getTransformation(entry);

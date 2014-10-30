@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public final class GEResponseEncoderDecoder implements Encoder<GEResponse, String>, Decoder<String, GEResponse>{
+public final class GEResponseEncoderDecoder extends GEResponseEncoderDecoderSupport implements Encoder<GEResponse, String>, Decoder<String, GEResponse>{
     private final static Logger logger = LoggerFactory.getLogger(GEResponseEncoderDecoder.class);
     private final static ObjectMapper mapper = new ObjectMapper();
     public final static GEResponseEncoderDecoder INSTANCE = new GEResponseEncoderDecoder(); 
@@ -31,10 +31,14 @@ public final class GEResponseEncoderDecoder implements Encoder<GEResponse, Strin
         	GEResponseType rt = GEResponseType.valueOf(obj.get("responseType").getTextValue());
 
 			switch (rt) {
-        		case CARTE_TRANS_LIST:
-        			return GEListTransformationsResponseEncoderDecoder.INSTANCE.decode(s);
         		case REQUEST_UPDATE:
         			return decodeUpdate(obj,s);
+        		case RUN_STARTED:
+        			GEConfirmStartResponse resp = new GEConfirmStartResponse();
+        			return super.decode(resp, obj);
+        		case RUN_FINISHED:
+        			GEFinishedResponse fresp = new GEFinishedResponse(obj.get("errorCount").getIntValue());
+        			return super.decode(fresp, obj);
         		default:
         			throw new IllegalArgumentException("Response type "+rt+" not supported by decoder");
         	}

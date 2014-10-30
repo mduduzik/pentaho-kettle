@@ -8,15 +8,17 @@ import org.pentaho.di.www.ge.websocket.message.GEMessageUpdateType;
 
 public class GETransLogUpdate extends GEBaseUpdateMessage {
 	private List<String[]> logLines;
+	private int maxIndex = -1;
 
 	public GETransLogUpdate() {
 		super();
 		this.msgUpdateType = GEMessageUpdateType.TRANS_LOG;
 	}
 	
-	public GETransLogUpdate(List<String[]> logLines) {
+	public GETransLogUpdate(List<String[]> logLinesList, int maxIndex) {
 		this();
-		this.logLines = logLines;
+		this.logLines = logLinesList;
+		this.maxIndex = maxIndex;
 	}
 
 	public List<String[]> getLogLines() {

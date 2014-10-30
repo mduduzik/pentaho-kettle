@@ -49,6 +49,8 @@ public class TransLogDelegate extends GraphEditorDelegate {
 
 	public void stopLogDataCollection() {
 		if (transGraph.trans != null) {
+			logBrowser.cancelLogSniffer();
+			
 			KettleLogStore.discardLines(transGraph.trans.getLogChannelId(),
 					true);
 		}

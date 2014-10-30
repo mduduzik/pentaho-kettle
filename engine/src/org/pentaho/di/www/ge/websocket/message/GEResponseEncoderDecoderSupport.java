@@ -2,7 +2,7 @@ package org.pentaho.di.www.ge.websocket.message;
 
 
 import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.pentaho.di.www.ge.json.CustomObjectMapper;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class GEResponseEncoderDecoderSupport {
-    protected ObjectMapper mapper = new ObjectMapper();
+    protected CustomObjectMapper mapper = new CustomObjectMapper();
 
 
     protected GEResponse decode(GEResponse resp, JsonNode obj){

@@ -1,8 +1,115 @@
-angular.module('angular.atmosphere.chat', [ 'angular.atmosphere' ]);
+angular.module('angular.atmosphere.chat', [ 'ngGrid', 'angular.atmosphere','ui.bootstrap' ]);
 
-function ChatController($scope, $http, atmosphereService) {
+function ChatController($scope, $http, $log, atmosphereService) {
 	$scope.wip = false;
-	
+
+	// Log Grid
+	$scope.logItems = [];
+	$scope.logGridOptions = {
+		data : 'logItems',
+		enableColumnResize : true,
+		columnDefs : [ {
+			field : 'index',
+			displayName : '',
+			width : "157px",
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'tstamp',
+			displayName : '',
+			width : "157px",
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'line',
+			displayName : 'Line',
+			cellClass : "leftAlign ngSmallFont"
+		} ]
+
+	};
+	function focusRow(rowToSelect,gridOpts) {
+		  gridOpts.selectItem(rowToSelect, true);
+		  var grid = gridOpts.ngGrid;
+		  grid.$viewport.scrollTop(grid.rowMap[rowToSelect] * grid.config.rowHeight);
+		};
+		
+	// Metrics grid
+	var w_ = "110px"; 
+	$scope.metricsItems = [];
+	$scope.metricsGridOptions = {
+		data : 'metricsItems',
+		enableColumnResize : true,
+		columnDefs : [ {
+			field : 'index',
+			displayName : '#',
+			width : "30px",
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Stepname',
+			displayName : 'Stepname',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Copynr',
+			displayName : 'Copynr',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Read',
+			displayName : 'Read',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Written',
+			displayName : 'Written',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Input	',
+			displayName : 'Input',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Output',
+			displayName : 'Output',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Updated',
+			displayName : 'Updated',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Rejected',
+			displayName : 'Rejected',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Errors',
+			displayName : 'Errors',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Active',
+			displayName : 'Active',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Time',
+			displayName : 'Time',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'Speed',
+			displayName : 'Speed(r/s)',
+			width : w_,
+			cellClass : "leftAlign ngSmallFont"
+		},{
+			field : 'inputoutput',
+			displayName : 'Input/Output',
+			cellClass : "leftAlign ngSmallFont"
+		} ]
+
+	};
+
 	$scope.model = {
 		transport : 'websocket',
 		messages : []
@@ -62,19 +169,59 @@ function ChatController($scope, $http, atmosphereService) {
 		var responseText = response.responseBody;
 		try {
 			var message = atmosphere.util.parseJSON(responseText);
-			if (!$scope.model.logged && $scope.model.name)
-				$scope.model.logged = true;
-			else {
-				var date = typeof (message.time) === 'string' ? parseInt(message.time)
-						: message.time;
-				$scope.model.messages.push({
-					author : message.author,
-					date : new Date(date),
-					text : message.message
-				});
+			if ('REQUEST_UPDATE' === message.responseType) {//Route to live-grid's
+				if ('TRANS_GRID' === message.msgUpdateType) {
+					if ($scope.metricsItems.length == 0) {
+						for ( var i=0; i < message.stepLines.length; i++) {
+							var step = message.stepLines[i];
+							step.index = (i+1);
+							step.inputoutput = '-';
+							$scope.metricsItems[i] = step;
+						}
+					}
+					else {
+						var temp_ = angular.copy($scope.metricsItems);
+						for ( var i=0; i < message.stepLines.length; i++) {
+							var step = message.stepLines[i];
+							step.index = (i+1);
+							step.inputoutput = '-';
+							temp_.splice(i,1,step);
+						}
+						$scope.metricsItems = temp_;
+					}
+				} else if ('TRANS_LOG' === message.msgUpdateType) {
+					if (!$scope.logItems[message.maxIndex]) {
+						for (var i = 0; i <= message.maxIndex; i++) {//init empty's
+							if (!$scope.logItems[i]) {
+								$scope.logItems[i] = {};
+							}
+						}
+					}
+					focusRow(message.logLines[0][0]-1,$scope.logGridOptions);
+					for ( var i=0; i < message.logLines.length; i++) {
+						var line = message.logLines[i];
+						var iIndex = line[0];
+						var eIndex = line[1];
+						var tIndex = line[2];
+						var lIndex = line[3];
+						$scope.logItems[iIndex] = {
+							index : iIndex,
+							tstamp: tIndex,
+							line : lIndex
+						};
+					}
+				}
+			} else if ('RUN_STARTED' === message.responseType) {
+				$scope.wip = true;
+				$log.info('Trans(' + $scope.selectedItem.carteObjectEntry.id
+						+ ') started');
+			} else if ('RUN_FINISHED' === message.responseType) {
+				$scope.wip = false;
+				$log.info('Trans(' + $scope.selectedItem.carteObjectEntry.id
+						+ ') finished');
 			}
 		} catch (e) {
-			console.error("Error parsing JSON: ", responseText);
+			$log.error("Error parsing JSON: ", responseText);
 			throw e;
 		}
 	};
@@ -113,10 +260,16 @@ function ChatController($scope, $http, atmosphereService) {
 
 	$scope.submit = function() {
 		if ($scope.selectedItem) {
-			socket.push(atmosphere.util.stringifyJSON({
-				author : $scope.model.name,
-				message : msg
-			}));
+			$scope.logItems = [];
+			socket
+					.push(atmosphere.util
+							.stringifyJSON({
+								type : 'EXEC_TRANS',
+								params : {
+									PARAM_CARTE_OBJECT_ID : $scope.selectedItem.carteObjectEntry.id,
+									PARAM_META_NAME : $scope.selectedItem.carteObjectEntry.name
+								}
+							}));
 		}
 	};
 

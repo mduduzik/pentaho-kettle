@@ -197,8 +197,6 @@ public class TransGraph implements LogParentProvidedInterface {
 
 	private StepMeta showTargetStreamsStep;
 
-	Timer redrawTimer;
-
 	public Trans trans;
 	private String carteObjectId;
 
@@ -486,14 +484,13 @@ public class TransGraph implements LogParentProvidedInterface {
 
 				@Override
 				public void transFinished(Trans trans) {
+					transGridDelegate.stopGridDataCollection();
+					transLogDelegate.stopLogDataCollection();
+					
 					checkTransEnded();
-					stopRedrawTimer();
 
 					transMetricsDelegate.resetLastRefreshTime();
 					transMetricsDelegate.updateGraph();
-					
-					transGridDelegate.stopGridDataCollection();
-					transLogDelegate.stopLogDataCollection();
 					
 					String json = GEFinishedResponseEncoderDecoder.INSTANCE.encode((new GEFinishedResponse(trans.getErrors(),carteObjectId)));
 					ge.sendJsonToClient(json);
@@ -507,14 +504,6 @@ public class TransGraph implements LogParentProvidedInterface {
 		}
 	}
 
-	protected void stopRedrawTimer() {
-		if (redrawTimer != null) {
-			redrawTimer.cancel();
-			redrawTimer.purge();
-			redrawTimer = null;
-		}
-
-	}
 
 	private void checkTransEnded() {
 		if (trans != null) {

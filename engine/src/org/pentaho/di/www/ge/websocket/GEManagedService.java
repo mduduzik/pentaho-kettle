@@ -18,14 +18,10 @@ import org.pentaho.di.www.SlaveServerStatus;
 import org.pentaho.di.www.SlaveServerTransStatus;
 import org.pentaho.di.www.TransformationMap;
 import org.pentaho.di.www.ge.GraphEditor;
-import org.pentaho.di.www.ge.websocket.message.GEBaseMessage;
-import org.pentaho.di.www.ge.websocket.message.GEListTransformationsRequest;
-import org.pentaho.di.www.ge.websocket.message.GEListTransformationsResponse;
 import org.pentaho.di.www.ge.websocket.message.GERequest;
 import org.pentaho.di.www.ge.websocket.message.GERequestEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.GEResponse;
 import org.pentaho.di.www.ge.websocket.message.GEResponseEncoderDecoder;
-import org.pentaho.di.www.ge.websocket.message.JacksonEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdate;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransGridUpdateEncoderDecoder;
 import org.pentaho.di.www.ge.websocket.message.trans.GETransLogUpdateEncoderDecoder;
@@ -101,9 +97,6 @@ public final class GEManagedService extends BaseWebSocket {
 		switch (request.getType()) {
 			case EXEC_TRANS:
 				resp = ge.handleRequest(request);
-				break;
-			case LIST_TRANS:
-				resp = new GEListTransformationsResponse(getTransServerStatus());
 				break;
 		}
 		return resp;

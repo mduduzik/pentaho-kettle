@@ -26,7 +26,7 @@ public class GETransLogUpdateEncoderDecoder extends GEUpdateEncoderDecoderSuppor
         		lines.add(mapper.readValue(logLinesIt.next().toString(),String[].class));
         	}        	
         	
-        	GETransLogUpdate resp = new GETransLogUpdate(lines);
+        	GETransLogUpdate resp = new GETransLogUpdate(lines,obj.get("maxIndex").getIntValue());
             
             return (GETransLogUpdate)super.decode(resp, obj);
         }catch(IOException e){
